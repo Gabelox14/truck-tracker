@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -15,6 +16,7 @@ from app.api.deps import (
 from app.database.session import get_db
 from app.models.driver import Driver
 from app.models.trip import Trip
+from app.schemas.export import FeRowOut
 from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut
 from app.schemas.trip_car import TripCarCreate, TripCarOut
 from app.services import export_service, trip_service
@@ -32,12 +34,40 @@ def list_trips(
     return trip_service.list_trips_for_user(db, user_id, limit=limit, offset=offset)
 
 
-@router.get("/export/fe")
-def export_fe(
+@router.get("/export/fe/preview", response_model=list[FeRowOut])
+def preview_fe(
+    truck_id: UUID | None = None,
+    zone_id: UUID | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    rows = trip_service.build_fe_rows(db)
+    return trip_service.build_fe_rows(
+        db,
+        truck_id=str(truck_id) if truck_id else None,
+        zone_id=str(zone_id) if zone_id else None,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+
+@router.get("/export/fe")
+def export_fe(
+    truck_id: UUID | None = None,
+    zone_id: UUID | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    _admin_id: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = trip_service.build_fe_rows(
+        db,
+        truck_id=str(truck_id) if truck_id else None,
+        zone_id=str(zone_id) if zone_id else None,
+        date_from=date_from,
+        date_to=date_to,
+    )
     buffer = export_service.build_fe_workbook(rows)
     return StreamingResponse(
         buffer,

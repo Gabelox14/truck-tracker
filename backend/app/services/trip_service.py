@@ -45,8 +45,16 @@ def list_trips_for_user(db: Session, user_id: str, limit: int = 50, offset: int 
     return trip_repository.list_all(db, driver_id=str(driver.id), limit=limit, offset=offset)
 
 
-def build_fe_rows(db: Session) -> list[dict]:
-    trips = trip_repository.list_all_unpaged(db)
+def build_fe_rows(
+    db: Session,
+    truck_id: str | None = None,
+    zone_id: str | None = None,
+    date_from=None,
+    date_to=None,
+) -> list[dict]:
+    trips = trip_repository.list_for_export(
+        db, truck_id=truck_id, zone_id=zone_id, date_from=date_from, date_to=date_to
+    )
     trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
     zones = {z.id: z for z in zone_repository.list_all(db, limit=200)}
 

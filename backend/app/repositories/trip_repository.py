@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.trip import Trip
@@ -23,6 +24,27 @@ def get(db: Session, trip_id: str) -> Trip | None:
 
 def list_all_unpaged(db: Session) -> list[Trip]:
     return db.query(Trip).order_by(Trip.started_at.desc()).all()
+
+
+def list_for_export(
+    db: Session,
+    truck_id: str | None = None,
+    zone_id: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> list[Trip]:
+    query = db.query(Trip)
+    if truck_id:
+        query = query.filter(Trip.truck_id == truck_id)
+    if zone_id:
+        query = query.filter(
+            or_(Trip.origin_zone_id == zone_id, Trip.destination_zone_id == zone_id)
+        )
+    if date_from:
+        query = query.filter(Trip.started_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
+    if date_to:
+        query = query.filter(Trip.started_at <= datetime.combine(date_to, time.max, tzinfo=timezone.utc))
+    return query.order_by(Trip.started_at.desc()).all()
 
 
 def create(
