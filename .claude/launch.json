@@ -8,6 +8,12 @@
       "port": 5173
     },
     {
+      "name": "frontend-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--prefix", "frontend", "--", "--port", "4173"],
+      "port": 4173
+    },
+    {
       "name": "backend-dev",
       "runtimeExecutable": "C:\\Users\\VOSTRO\\OneDrive\\Escritorio\\truck-tracker\\backend\\dev.bat",
       "runtimeArgs": [],

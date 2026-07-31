@@ -1,14 +1,20 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
-import AdminPage from "./pages/AdminPage";
-import DriverPage from "./pages/DriverPage";
 import LoginPage from "./pages/LoginPage";
 import PendingAccessPage from "./pages/PendingAccessPage";
 import VerifiedPage from "./pages/VerifiedPage";
+
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const DriverPage = lazy(() => import("./pages/DriverPage"));
+
+function RouteFallback() {
+  return <div className="flex min-h-screen items-center justify-center text-slate-500">Cargando...</div>;
+}
 
 function HomeRedirect() {
   const { profile } = useAuth();
@@ -49,7 +55,9 @@ function App() {
               path="/admin"
               element={
                 <ProtectedRoute allowedRoles={["admin", "dispatcher"]}>
-                  <AdminPage />
+                  <Suspense fallback={<RouteFallback />}>
+                    <AdminPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />
@@ -57,7 +65,9 @@ function App() {
               path="/driver"
               element={
                 <ProtectedRoute requireAssigned>
-                  <DriverPage />
+                  <Suspense fallback={<RouteFallback />}>
+                    <DriverPage />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />

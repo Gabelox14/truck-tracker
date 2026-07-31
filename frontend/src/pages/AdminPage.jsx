@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
 import { Layout } from "../components/Layout";
-import DriversSection from "./admin/DriversSection";
-import TripsSection from "./admin/TripsSection";
-import TrucksSection from "./admin/TrucksSection";
-import UsersSection from "./admin/UsersSection";
-import ZonesSection from "./admin/ZonesSection";
+
+const TrucksSection = lazy(() => import("./admin/TrucksSection"));
+const DriversSection = lazy(() => import("./admin/DriversSection"));
+const ZonesSection = lazy(() => import("./admin/ZonesSection"));
+const TripsSection = lazy(() => import("./admin/TripsSection"));
+const UsersSection = lazy(() => import("./admin/UsersSection"));
 
 const TABS = [
   { key: "trucks", label: "Camiones", Component: TrucksSection },
@@ -36,7 +37,9 @@ export default function AdminPage() {
           </button>
         ))}
       </nav>
-      <ActiveComponent />
+      <Suspense fallback={<p className="text-sm text-slate-400">Cargando...</p>}>
+        <ActiveComponent />
+      </Suspense>
     </Layout>
   );
 }
