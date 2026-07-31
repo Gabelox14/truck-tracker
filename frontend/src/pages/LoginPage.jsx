@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { PasswordInput } from "../components/ui";
 import { supabase } from "../lib/supabaseClient";
 
 export default function LoginPage() {
@@ -28,7 +29,10 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { full_name: fullName, cedula } },
+          options: {
+            data: { full_name: fullName, cedula },
+            emailRedirectTo: `${window.location.origin}/verified`,
+          },
         });
         if (error) throw error;
         setInfo("Cuenta creada. Revisá tu email para confirmarla antes de iniciar sesión.");
@@ -121,15 +125,13 @@ export default function LoginPage() {
             <label htmlFor="password" className="text-sm font-medium text-slate-700">
               Contraseña
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               required
               minLength={6}
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
             />
           </div>
 

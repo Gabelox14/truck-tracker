@@ -7,6 +7,7 @@ import { ToastProvider } from "./context/ToastContext";
 import AdminPage from "./pages/AdminPage";
 import DriverPage from "./pages/DriverPage";
 import LoginPage from "./pages/LoginPage";
+import VerifiedPage from "./pages/VerifiedPage";
 
 function HomeRedirect() {
   const { profile } = useAuth();
@@ -23,6 +24,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/verified" element={<VerifiedPage />} />
             <Route
               path="/"
               element={
