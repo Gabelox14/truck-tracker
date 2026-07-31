@@ -1,4 +1,4 @@
-# Truck Tracker
+# Full Soluciones S.A G&A
 
 Monorepo con frontend (React + Vite) y backend (FastAPI), sobre Supabase (Postgres + Auth).
 
