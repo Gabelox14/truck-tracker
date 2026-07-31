@@ -69,6 +69,23 @@ def get_current_driver(
     return driver
 
 
+def require_staff_or_driver(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> str:
+    profile = db.get(Profile, user_id)
+    is_staff = profile is not None and profile.role in ("admin", "dispatcher")
+    if is_staff:
+        return user_id
+    driver = db.query(Driver).filter(Driver.profile_id == user_id).first()
+    if driver is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No estás asignado como chofer todavía",
+        )
+    return user_id
+
+
 def require_trip_access(
     trip_id: UUID,
     user_id: str = Depends(get_current_user_id),

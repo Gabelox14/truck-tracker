@@ -2,7 +2,7 @@ import { Navigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 
-export function ProtectedRoute({ children, allowedRoles }) {
+export function ProtectedRoute({ children, allowedRoles, requireAssigned }) {
   const { session, profile, loading } = useAuth();
 
   if (loading) {
@@ -13,6 +13,10 @@ export function ProtectedRoute({ children, allowedRoles }) {
   }
   if (allowedRoles && !allowedRoles.includes(profile?.role)) {
     return <Navigate to="/" replace />;
+  }
+  const isStaff = profile?.role === "admin" || profile?.role === "dispatcher";
+  if (requireAssigned && !isStaff && !profile?.is_assigned) {
+    return <Navigate to="/pending" replace />;
   }
   return children;
 }

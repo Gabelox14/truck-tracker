@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user_id, require_staff
+from app.api.deps import require_staff, require_staff_or_driver
 from app.database.session import get_db
 from app.schemas.truck import TruckCreate, TruckOut, TruckUpdate
 from app.services import truck_service
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/trucks", tags=["trucks"])
 def list_trucks(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    _user_id: str = Depends(get_current_user_id),
+    _user_id: str = Depends(require_staff_or_driver),
     db: Session = Depends(get_db),
 ):
     return truck_service.list_trucks(db, limit=limit, offset=offset)
@@ -38,7 +38,7 @@ def create_truck(
 @router.get("/{truck_id}", response_model=TruckOut)
 def get_truck(
     truck_id: UUID,
-    _user_id: str = Depends(get_current_user_id),
+    _user_id: str = Depends(require_staff_or_driver),
     db: Session = Depends(get_db),
 ):
     truck = truck_service.get_truck(db, str(truck_id))

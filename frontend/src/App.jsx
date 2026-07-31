@@ -7,6 +7,7 @@ import { ToastProvider } from "./context/ToastContext";
 import AdminPage from "./pages/AdminPage";
 import DriverPage from "./pages/DriverPage";
 import LoginPage from "./pages/LoginPage";
+import PendingAccessPage from "./pages/PendingAccessPage";
 import VerifiedPage from "./pages/VerifiedPage";
 
 function HomeRedirect() {
@@ -14,7 +15,10 @@ function HomeRedirect() {
   if (profile?.role === "admin" || profile?.role === "dispatcher") {
     return <Navigate to="/admin" replace />;
   }
-  return <Navigate to="/driver" replace />;
+  if (profile?.is_assigned) {
+    return <Navigate to="/driver" replace />;
+  }
+  return <Navigate to="/pending" replace />;
 }
 
 function App() {
@@ -25,6 +29,14 @@ function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/verified" element={<VerifiedPage />} />
+            <Route
+              path="/pending"
+              element={
+                <ProtectedRoute>
+                  <PendingAccessPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/"
               element={
@@ -44,7 +56,7 @@ function App() {
             <Route
               path="/driver"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAssigned>
                   <DriverPage />
                 </ProtectedRoute>
               }

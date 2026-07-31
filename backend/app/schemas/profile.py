@@ -15,6 +15,7 @@ class ProfileOut(BaseModel):
     cedula: str
     role: str
     created_at: datetime
+    is_assigned: bool = False
 
 
 class ProfileRoleUpdate(BaseModel):

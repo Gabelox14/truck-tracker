@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user_id, require_admin
+from app.api.deps import require_admin, require_staff_or_driver
 from app.database.session import get_db
 from app.schemas.zone import ZoneCreate, ZoneOut, ZoneUpdate
 from app.services import zone_service
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/zones", tags=["zones"])
 def list_zones(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    _user_id: str = Depends(get_current_user_id),
+    _user_id: str = Depends(require_staff_or_driver),
     db: Session = Depends(get_db),
 ):
     return zone_service.list_zones(db, limit=limit, offset=offset)
@@ -38,7 +38,7 @@ def create_zone(
 @router.get("/{zone_id}", response_model=ZoneOut)
 def get_zone(
     zone_id: UUID,
-    _user_id: str = Depends(get_current_user_id),
+    _user_id: str = Depends(require_staff_or_driver),
     db: Session = Depends(get_db),
 ):
     zone = zone_service.get_zone(db, str(zone_id))
