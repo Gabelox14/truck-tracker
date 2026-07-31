@@ -70,5 +70,13 @@ def delete_truck(
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    if not truck_service.delete_truck(db, str(truck_id)):
+    try:
+        deleted = truck_service.delete_truck(db, str(truck_id))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No se puede eliminar: tiene viajes asociados",
+        )
+    if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Truck not found")

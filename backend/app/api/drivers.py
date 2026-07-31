@@ -69,5 +69,13 @@ def delete_driver(
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    if not driver_service.delete_driver(db, str(driver_id)):
+    try:
+        deleted = driver_service.delete_driver(db, str(driver_id))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No se puede eliminar: tiene viajes asociados",
+        )
+    if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Driver not found")

@@ -70,5 +70,13 @@ def delete_zone(
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    if not zone_service.delete_zone(db, str(zone_id)):
+    try:
+        deleted = zone_service.delete_zone(db, str(zone_id))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No se puede eliminar: tiene viajes asociados",
+        )
+    if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")

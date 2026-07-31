@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
-import { Button, Card, EmptyState, ErrorText, Input } from "../../components/ui";
+import { Button, Card, ConfirmButton, EmptyState, ErrorText, Input } from "../../components/ui";
+import { useToast } from "../../context/ToastContext";
 
 export default function TrucksSection() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [plate, setPlate] = useState("");
   const [error, setError] = useState("");
 
@@ -26,7 +28,11 @@ export default function TrucksSection() {
 
   const deleteTruck = useMutation({
     mutationFn: async (id) => apiClient.delete(`/trucks/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["trucks"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trucks"] });
+      showToast("Camión eliminado");
+    },
+    onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo eliminar el camión", "error"),
   });
 
   return (
@@ -37,7 +43,7 @@ export default function TrucksSection() {
             e.preventDefault();
             createTruck.mutate(plate);
           }}
-          className="flex gap-2"
+          className="flex flex-col gap-2 sm:flex-row"
         >
           <Input
             placeholder="Patente (ej: ABC123)"
@@ -60,11 +66,12 @@ export default function TrucksSection() {
         ) : trucks?.length ? (
           <ul className="divide-y divide-slate-100">
             {trucks.map((truck) => (
-              <li key={truck.id} className="flex items-center justify-between py-3">
+              <li key={truck.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                 <span className="text-sm text-slate-900">{truck.plate}</span>
-                <Button variant="danger" onClick={() => deleteTruck.mutate(truck.id)}>
-                  Eliminar
-                </Button>
+                <ConfirmButton
+                  pending={deleteTruck.isPending}
+                  onConfirm={() => deleteTruck.mutate(truck.id)}
+                />
               </li>
             ))}
           </ul>

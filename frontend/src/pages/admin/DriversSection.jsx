@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
-import { Button, Card, EmptyState, ErrorText, Select } from "../../components/ui";
+import { Button, Card, ConfirmButton, EmptyState, ErrorText, Select } from "../../components/ui";
+import { useToast } from "../../context/ToastContext";
 
 export default function DriversSection() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [profileId, setProfileId] = useState("");
   const [error, setError] = useState("");
 
@@ -36,7 +38,11 @@ export default function DriversSection() {
 
   const deleteDriver = useMutation({
     mutationFn: async (id) => apiClient.delete(`/drivers/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["drivers"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      showToast("Chofer eliminado");
+    },
+    onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo eliminar el chofer", "error"),
   });
 
   return (
@@ -81,11 +87,12 @@ export default function DriversSection() {
         ) : drivers?.length ? (
           <ul className="divide-y divide-slate-100">
             {drivers.map((driver) => (
-              <li key={driver.id} className="flex items-center justify-between py-3">
+              <li key={driver.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                 <span className="text-sm text-slate-900">{driver.full_name}</span>
-                <Button variant="danger" onClick={() => deleteDriver.mutate(driver.id)}>
-                  Eliminar
-                </Button>
+                <ConfirmButton
+                  pending={deleteDriver.isPending}
+                  onConfirm={() => deleteDriver.mutate(driver.id)}
+                />
               </li>
             ))}
           </ul>

@@ -57,8 +57,8 @@ export default function DriverPage() {
           <p className="text-sm text-slate-400">Cargando...</p>
         ) : activeTrip ? (
           <Card title="Viaje en curso">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900">
                   {truckPlate(activeTrip.truck_id)}
                 </p>
@@ -69,7 +69,11 @@ export default function DriverPage() {
                   Salió {new Date(activeTrip.started_at).toLocaleString()}
                 </p>
               </div>
-              <Button onClick={() => completeTrip.mutate(activeTrip.id)} disabled={completeTrip.isPending}>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => completeTrip.mutate(activeTrip.id)}
+                disabled={completeTrip.isPending}
+              >
                 Marcar como llegado
               </Button>
             </div>
@@ -134,7 +138,7 @@ export default function DriverPage() {
             <ul className="divide-y divide-slate-100">
               {history.map((trip) => (
                 <li key={trip.id} className="py-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm text-slate-900">
                       {zoneName(trip.origin_zone_id)} → {zoneName(trip.destination_zone_id)}
                     </span>

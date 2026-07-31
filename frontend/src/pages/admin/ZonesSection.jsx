@@ -2,13 +2,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
-import { Button, Card, EmptyState, ErrorText, Input } from "../../components/ui";
+import { Button, Card, ConfirmButton, EmptyState, ErrorText, Input } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 
 export default function ZonesSection() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [error, setError] = useState("");
 
@@ -29,7 +31,11 @@ export default function ZonesSection() {
 
   const deleteZone = useMutation({
     mutationFn: async (id) => apiClient.delete(`/zones/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["zones"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["zones"] });
+      showToast("Zona eliminada");
+    },
+    onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo eliminar la zona", "error"),
   });
 
   return (
@@ -41,7 +47,7 @@ export default function ZonesSection() {
               e.preventDefault();
               createZone.mutate(name);
             }}
-            className="flex gap-2"
+            className="flex flex-col gap-2 sm:flex-row"
           >
             <Input
               placeholder="Nombre de la zona (ej: Bodega Central)"
@@ -65,12 +71,13 @@ export default function ZonesSection() {
         ) : zones?.length ? (
           <ul className="divide-y divide-slate-100">
             {zones.map((zone) => (
-              <li key={zone.id} className="flex items-center justify-between py-3">
+              <li key={zone.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
                 <span className="text-sm text-slate-900">{zone.name}</span>
                 {isAdmin && (
-                  <Button variant="danger" onClick={() => deleteZone.mutate(zone.id)}>
-                    Eliminar
-                  </Button>
+                  <ConfirmButton
+                    pending={deleteZone.isPending}
+                    onConfirm={() => deleteZone.mutate(zone.id)}
+                  />
                 )}
               </li>
             ))}

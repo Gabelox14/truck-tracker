@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export function Button({ variant = "primary", className = "", ...props }) {
   const variants = {
     primary: "bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50",
@@ -9,6 +11,37 @@ export function Button({ variant = "primary", className = "", ...props }) {
       className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${variants[variant]} ${className}`}
       {...props}
     />
+  );
+}
+
+export function ConfirmButton({ onConfirm, pending = false, children = "Eliminar", className = "" }) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <span className="text-sm text-slate-500">¿Eliminar?</span>
+        <Button
+          variant="danger"
+          disabled={pending}
+          onClick={() => {
+            onConfirm();
+            setConfirming(false);
+          }}
+        >
+          Sí
+        </Button>
+        <Button variant="ghost" onClick={() => setConfirming(false)}>
+          No
+        </Button>
+      </span>
+    );
+  }
+
+  return (
+    <Button variant="danger" className={className} onClick={() => setConfirming(true)}>
+      {children}
+    </Button>
   );
 }
 

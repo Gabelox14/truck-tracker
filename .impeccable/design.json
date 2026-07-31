@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-31T07:30:00Z",
+  "title": "Design System: Truck Tracker",
+  "extensions": {
+    "colorMeta": {
+      "ink-slate": { "role": "primary", "displayName": "Ink Slate", "canonical": "#0f172a", "tonalRamp": ["#020617", "#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1"] },
+      "surface-app": { "role": "neutral", "displayName": "App Canvas", "canonical": "#f8fafc", "tonalRamp": ["#f8fafc"] },
+      "surface-card": { "role": "neutral", "displayName": "Card White", "canonical": "#ffffff", "tonalRamp": ["#ffffff"] },
+      "surface-subtle": { "role": "neutral", "displayName": "Subtle Fill", "canonical": "#f1f5f9", "tonalRamp": ["#f1f5f9"] },
+      "border-hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "#e2e8f0", "tonalRamp": ["#e2e8f0"] },
+      "status-progress-bg": { "role": "tertiary", "displayName": "Amber (In Progress)", "canonical": "#fef3c7", "tonalRamp": ["#fef3c7", "#92400e"] },
+      "status-done-bg": { "role": "secondary", "displayName": "Emerald (Completed)", "canonical": "#d1fae5", "tonalRamp": ["#d1fae5", "#065f46"] },
+      "danger-bg": { "role": "neutral", "displayName": "Danger", "canonical": "#fef2f2", "tonalRamp": ["#fef2f2", "#b91c1c"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page-level heading only; 24px ceiling for the whole system." },
+      "label": { "displayName": "Label", "purpose": "Form labels, button text, nav tabs." },
+      "body": { "displayName": "Body", "purpose": "Row content, form values, descriptions." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Barely-there lift separating Card White from App Canvas; no hover elevation change." }
+    ],
+    "motion": [
+      { "name": "color-step", "value": "150-200ms ease", "purpose": "Only transition in the system: background/text color changes on hover and tab focus." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default action button — submit forms, confirm, complete a trip.",
+      "html": "<button class=\"ds-btn-primary\">Crear</button>",
+      "css": ".ds-btn-primary { background: #0f172a; color: #fff; border: none; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s ease; } .ds-btn-primary:hover { background: #1e293b; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Quiet destructive action — delete a row (truck, driver, zone, car).",
+      "html": "<button class=\"ds-btn-danger\">Eliminar</button>",
+      "css": ".ds-btn-danger { background: #fef2f2; color: #b91c1c; border: none; border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s ease; } .ds-btn-danger:hover { background: #fee2e2; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Trip status indicator — amber in progress, emerald completed.",
+      "html": "<span class=\"ds-badge ds-badge-amber\">En curso</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 2px 8px; font-size: 12px; font-weight: 500; } .ds-badge-amber { background: #fef3c7; color: #92400e; } .ds-badge-emerald { background: #d1fae5; color: #065f46; } .ds-badge-slate { background: #f1f5f9; color: #334155; } .ds-badge-red { background: #fee2e2; color: #b91c1c; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard form field — plate, zone name, amount, email/password.",
+      "html": "<input class=\"ds-input\" placeholder=\"Patente (ej: ABC123)\" />",
+      "css": ".ds-input { width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-size: 14px; outline: none; transition: border-color 0.15s ease; } .ds-input:focus { border-color: #0f172a; box-shadow: 0 0 0 1px #0f172a; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The base surface for every section — forms, lists, the trip status readout.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\">Camiones</div><div class=\"ds-card-body\">No hay camiones registrados todavía.</div></div>",
+      "css": ".ds-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-card-header { border-bottom: 1px solid #f1f5f9; padding: 16px 20px; font-size: 14px; font-weight: 600; color: #0f172a; } .ds-card-body { padding: 20px; font-size: 14px; color: #475569; }"
+    },
+    {
+      "name": "Tab Nav",
+      "kind": "nav",
+      "refersTo": "nav-tab",
+      "description": "Admin panel section switcher — Camiones / Choferes / Zonas / Viajes / Usuarios.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab ds-tab-active\">Camiones</button><button class=\"ds-tab\">Choferes</button></nav>",
+      "css": ".ds-tabs { display: flex; gap: 4px; border-bottom: 1px solid #e2e8f0; } .ds-tab { padding: 8px 12px; font-size: 14px; font-weight: 500; color: #64748b; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: color 0.15s ease; } .ds-tab:hover { color: #334155; } .ds-tab-active { color: #0f172a; border-bottom-color: #0f172a; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Dispatch Board",
+    "overview": "A clipboard, not a showroom. This is an internal ops tool for one car-hauling business — the two people using it (dispatch staff at a desk, drivers on a phone) need to read a status, find a button, and move on. The system deliberately withholds decoration: one neutral ink color for structure and action, three semantic colors reserved strictly for trip status (in progress / completed / destructive), and nothing else competing for attention. Whitespace and hairline borders do the organizing work that color would do in a consumer product. Nothing here is provisional-looking or unfinished — the restraint is the choice, not a placeholder for a future rebrand. If this system ever gets a real brand pass, the ink-slate primary is the one color to replace; everything else (status colors, neutral scale) is functional and should survive unchanged.",
+    "keyCharacteristics": [
+      "Single ink-slate (#0f172a) as the only color with authority — it is text, primary buttons, and active tab state, never anything else.",
+      "Status color (amber = in progress, emerald = completed, red = destructive) never appears outside a Badge or a delete affordance.",
+      "Flat cards on a barely-tinted app background (#f8fafc vs #ffffff) — the only depth cue in the system.",
+      "Dense, left-aligned, form-first layouts. No hero sections, no marketing rhythm."
+    ],
+    "rules": [
+      { "name": "The One Ink Rule", "body": "Ink Slate is the only color allowed to mean \"this is interactive and important.\" If a second color starts appearing on primary buttons or active nav, the system has drifted.", "section": "colors" },
+      { "name": "The Status-Only Rule", "body": "Amber, emerald, and red never appear as decoration. Amber = trip in progress, emerald = trip completed, red = a destructive action or an error message. No other use is permitted, ever.", "section": "colors" },
+      { "name": "The No-Display-Type Rule", "body": "There is no hero/display scale in this system. 24px is the ceiling.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Depth comes from the App Canvas / Card White contrast and hairline borders first; shadow is a secondary, barely-perceptible reinforcement, never the primary depth cue.", "section": "elevation" },
+      { "name": "The Nesting Radius Rule", "body": "A control nested inside a larger rounded surface uses an equal or smaller radius than its parent — never larger.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do keep Ink Slate as the only color used for primary actions and active navigation state.",
+      "Do reserve amber/emerald/red strictly for trip status and destructive actions.",
+      "Do use hairline borders + the App Canvas/Card White contrast as the primary depth cue before reaching for shadow.",
+      "Do keep nested radii equal to or smaller than their parent container's radius.",
+      "Do design the driver surface for one-handed phone use first."
+    ],
+    "donts": [
+      "Don't introduce a second \"important\" color alongside Ink Slate.",
+      "Don't add hover elevation/lift to cards or buttons.",
+      "Don't invent sample fleet, driver, or trip data to demo the UI.",
+      "Don't add a display/hero type scale; 24px is the largest text this system uses anywhere."
+    ]
+  }
+}

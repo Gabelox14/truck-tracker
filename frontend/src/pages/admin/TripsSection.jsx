@@ -4,6 +4,7 @@ import { useState } from "react";
 import { apiClient } from "../../lib/apiClient";
 import { Badge, Button, Card, EmptyState, Input } from "../../components/ui";
 import { TripCarsPanel } from "../../components/TripCarsPanel";
+import { useToast } from "../../context/ToastContext";
 
 function useLookup(queryKey, path, labelKey) {
   const { data } = useQuery({
@@ -19,6 +20,7 @@ function useLookup(queryKey, path, labelKey) {
 
 function AmountEditor({ trip }) {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(trip.amount ?? "");
 
@@ -28,7 +30,9 @@ function AmountEditor({ trip }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trips"] });
       setEditing(false);
+      showToast("Monto guardado");
     },
+    onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo guardar el monto", "error"),
   });
 
   if (editing) {
@@ -46,24 +50,33 @@ function AmountEditor({ trip }) {
           min="0"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="!w-28"
+          className="!w-24"
           autoFocus
           required
         />
         <Button type="submit" disabled={setTripAmount.isPending}>
           Guardar
         </Button>
+        <Button variant="ghost" type="button" onClick={() => setEditing(false)}>
+          Cancelar
+        </Button>
       </form>
     );
   }
+
+  const hasAmount = trip.amount != null;
 
   return (
     <button
       type="button"
       onClick={() => setEditing(true)}
-      className="text-sm text-slate-600 hover:text-slate-900 hover:underline"
+      className={`rounded-lg border px-2.5 py-1 text-sm font-medium transition ${
+        hasAmount
+          ? "border-slate-300 bg-white text-slate-900 hover:border-slate-900"
+          : "border-dashed border-slate-300 text-slate-500 hover:border-slate-900 hover:text-slate-900"
+      }`}
     >
-      {trip.amount != null ? `$${Number(trip.amount).toFixed(2)}` : "Agregar monto"}
+      {hasAmount ? `$${Number(trip.amount).toFixed(2)}` : "+ Agregar monto"}
     </button>
   );
 }
@@ -73,7 +86,7 @@ function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
 
   return (
     <li className="py-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-medium text-slate-900">
           {driverNames[trip.driver_id] ?? "Chofer"} · {truckPlates[trip.truck_id] ?? "Camión"}
         </span>
@@ -88,7 +101,7 @@ function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
         Salió {new Date(trip.started_at).toLocaleString()}
         {trip.completed_at && ` · Llegó ${new Date(trip.completed_at).toLocaleString()}`}
       </p>
-      <div className="mt-2 flex items-center gap-4">
+      <div className="mt-2 flex flex-wrap items-center gap-3">
         <AmountEditor trip={trip} />
         <button
           type="button"
