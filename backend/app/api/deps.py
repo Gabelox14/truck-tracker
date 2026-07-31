@@ -56,6 +56,13 @@ def require_staff(
     return user_id
 
 
+def require_staff_profile(
+    user_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+) -> Profile:
+    return db.get(Profile, user_id)
+
+
 def get_current_driver(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
@@ -84,6 +91,13 @@ def require_staff_or_driver(
             detail="No estás asignado como chofer todavía",
         )
     return user_id
+
+
+def require_staff_or_driver_profile(
+    user_id: str = Depends(require_staff_or_driver),
+    db: Session = Depends(get_db),
+) -> Profile:
+    return db.get(Profile, user_id)
 
 
 def require_trip_access(

@@ -6,10 +6,14 @@ from pydantic import BaseModel, ConfigDict
 
 class TruckCreate(BaseModel):
     plate: str
+    code: str | None = None
+    brand: str | None = None
 
 
 class TruckUpdate(BaseModel):
-    plate: str
+    plate: str | None = None
+    code: str | None = None
+    brand: str | None = None
 
 
 class TruckOut(BaseModel):
@@ -17,4 +21,6 @@ class TruckOut(BaseModel):
 
     id: UUID
     plate: str
+    code: str | None = None
+    brand: str | None = None
     created_at: datetime

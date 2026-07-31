@@ -21,6 +21,10 @@ def get(db: Session, trip_id: str) -> Trip | None:
     return db.get(Trip, trip_id)
 
 
+def list_all_unpaged(db: Session) -> list[Trip]:
+    return db.query(Trip).order_by(Trip.started_at.desc()).all()
+
+
 def create(
     db: Session, driver_id: str, truck_id: str, origin_zone_id: str, destination_zone_id: str
 ) -> Trip:

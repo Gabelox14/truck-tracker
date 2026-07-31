@@ -4,7 +4,7 @@ from app.models.driver import Driver
 from app.models.profile import Profile
 from app.models.trip import Trip
 from app.models.trip_car import TripCar
-from app.repositories import trip_car_repository, trip_repository
+from app.repositories import trip_car_repository, trip_repository, truck_repository, zone_repository
 
 
 def create_trip(
@@ -43,3 +43,29 @@ def list_trips_for_user(db: Session, user_id: str, limit: int = 50, offset: int 
     if driver is None:
         return []
     return trip_repository.list_all(db, driver_id=str(driver.id), limit=limit, offset=offset)
+
+
+def build_fe_rows(db: Session) -> list[dict]:
+    trips = trip_repository.list_all_unpaged(db)
+    trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
+    zones = {z.id: z for z in zone_repository.list_all(db, limit=200)}
+
+    rows = []
+    for trip in trips:
+        truck = trucks.get(trip.truck_id)
+        zone_origin = zones.get(trip.origin_zone_id)
+        zone_destination = zones.get(trip.destination_zone_id)
+        base = {
+            "truck_code": truck.code if truck else None,
+            "truck_plate": truck.plate if truck else None,
+            "origin": zone_origin.name if zone_origin else None,
+            "destination": zone_destination.name if zone_destination else None,
+            "amount": trip.amount,
+        }
+        cars = trip_car_repository.list_for_trip(db, str(trip.id))
+        if cars:
+            for car in cars:
+                rows.append({**base, "brand": car.brand, "vin_photo_url": car.vin_photo_url})
+        else:
+            rows.append({**base, "brand": None, "vin_photo_url": None})
+    return rows

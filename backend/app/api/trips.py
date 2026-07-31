@@ -1,16 +1,23 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_driver, get_current_user_id, require_staff, require_trip_access
+from app.api.deps import (
+    get_current_driver,
+    get_current_user_id,
+    require_admin,
+    require_staff,
+    require_trip_access,
+)
 from app.database.session import get_db
 from app.models.driver import Driver
 from app.models.trip import Trip
 from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut
 from app.schemas.trip_car import TripCarCreate, TripCarOut
-from app.services import trip_service
+from app.services import export_service, trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -23,6 +30,20 @@ def list_trips(
     db: Session = Depends(get_db),
 ):
     return trip_service.list_trips_for_user(db, user_id, limit=limit, offset=offset)
+
+
+@router.get("/export/fe")
+def export_fe(
+    _admin_id: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = trip_service.build_fe_rows(db)
+    buffer = export_service.build_fe_workbook(rows)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="FE.xlsx"'},
+    )
 
 
 @router.post("", response_model=TripOut, status_code=status.HTTP_201_CREATED)

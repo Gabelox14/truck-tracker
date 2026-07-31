@@ -1,29 +1,35 @@
 import { lazy, Suspense, useState } from "react";
 
 import { Layout } from "../components/Layout";
+import { useAuth } from "../context/AuthContext";
 
 const TrucksSection = lazy(() => import("./admin/TrucksSection"));
 const DriversSection = lazy(() => import("./admin/DriversSection"));
 const ZonesSection = lazy(() => import("./admin/ZonesSection"));
 const TripsSection = lazy(() => import("./admin/TripsSection"));
 const UsersSection = lazy(() => import("./admin/UsersSection"));
+const FeSection = lazy(() => import("./admin/FeSection"));
 
-const TABS = [
+const ALL_TABS = [
   { key: "trucks", label: "Camiones", Component: TrucksSection },
   { key: "drivers", label: "Choferes", Component: DriversSection },
   { key: "zones", label: "Zonas", Component: ZonesSection },
   { key: "trips", label: "Viajes", Component: TripsSection },
   { key: "users", label: "Usuarios", Component: UsersSection },
+  { key: "fe", label: "FE", Component: FeSection, adminOnly: true },
 ];
 
 export default function AdminPage() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
+  const tabs = ALL_TABS.filter((tab) => !tab.adminOnly || isAdmin);
   const [active, setActive] = useState("trucks");
-  const ActiveComponent = TABS.find((t) => t.key === active).Component;
+  const ActiveComponent = (tabs.find((t) => t.key === active) ?? tabs[0]).Component;
 
   return (
     <Layout>
       <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActive(tab.key)}

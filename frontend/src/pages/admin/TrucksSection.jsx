@@ -3,12 +3,17 @@ import { useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
 import { Button, Card, ConfirmButton, EmptyState, ErrorText, Input } from "../../components/ui";
+import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 
 export default function TrucksSection() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [plate, setPlate] = useState("");
+  const [code, setCode] = useState("");
+  const [brand, setBrand] = useState("");
   const [error, setError] = useState("");
 
   const { data: trucks, isLoading } = useQuery({
@@ -17,10 +22,12 @@ export default function TrucksSection() {
   });
 
   const createTruck = useMutation({
-    mutationFn: async (plate) => (await apiClient.post("/trucks", { plate })).data,
+    mutationFn: async (payload) => (await apiClient.post("/trucks", payload)).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trucks"] });
       setPlate("");
+      setCode("");
+      setBrand("");
       setError("");
     },
     onError: (err) => setError(err.response?.data?.detail ?? "Error al crear el camión"),
@@ -41,7 +48,9 @@ export default function TrucksSection() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            createTruck.mutate(plate);
+            createTruck.mutate(
+              isAdmin ? { plate, code: code || null, brand: brand || null } : { plate },
+            );
           }}
           className="flex flex-col gap-2 sm:flex-row"
         >
@@ -51,6 +60,16 @@ export default function TrucksSection() {
             onChange={(e) => setPlate(e.target.value)}
             required
           />
+          {isAdmin && (
+            <>
+              <Input
+                placeholder="Código de camión"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+              <Input placeholder="Marca" value={brand} onChange={(e) => setBrand(e.target.value)} />
+            </>
+          )}
           <Button type="submit" disabled={createTruck.isPending}>
             Crear
           </Button>
@@ -67,7 +86,14 @@ export default function TrucksSection() {
           <ul className="divide-y divide-slate-100">
             {trucks.map((truck) => (
               <li key={truck.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                <span className="text-sm text-slate-900">{truck.plate}</span>
+                <div className="min-w-0">
+                  <span className="text-sm text-slate-900">{truck.plate}</span>
+                  {isAdmin && (truck.code || truck.brand) && (
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {[truck.code, truck.brand].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
                 <ConfirmButton
                   pending={deleteTruck.isPending}
                   onConfirm={() => deleteTruck.mutate(truck.id)}
