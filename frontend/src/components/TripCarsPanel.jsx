@@ -137,7 +137,7 @@ export function TripCarsPanel({ tripId, canAdd = false, canDelete = false }) {
             type="file"
             accept="image/*"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1.5 file:text-sm sm:w-auto"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 outline-none file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-sm file:font-medium file:text-slate-700 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto"
           />
           <Button type="submit" disabled={uploading || addCar.isPending}>
             {uploading ? "Subiendo..." : "Agregar"}

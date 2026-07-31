@@ -22,24 +22,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!active) return;
-      setSession(session);
-      if (session) {
-        await loadProfile();
-      }
-      setLoading(false);
-    });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
       setSession(session);
       if (session) {
         setLoading(true);
-        loadProfile().finally(() => setLoading(false));
+        loadProfile().finally(() => {
+          if (active) setLoading(false);
+        });
       } else {
         setProfile(null);
+        setLoading(false);
       }
     });
 

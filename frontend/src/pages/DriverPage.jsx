@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Badge, Button, Card, EmptyState, ErrorText, Select } from "../components/ui";
 import { apiClient } from "../lib/apiClient";
 import { Layout } from "../components/Layout";
+import { useToast } from "../context/ToastContext";
 
 export default function DriverPage() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [truckId, setTruckId] = useState("");
   const [originZoneId, setOriginZoneId] = useState("");
   const [destinationZoneId, setDestinationZoneId] = useState("");
@@ -41,7 +43,11 @@ export default function DriverPage() {
 
   const completeTrip = useMutation({
     mutationFn: async (id) => (await apiClient.post(`/trips/${id}/complete`)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["my-trips"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-trips"] });
+      showToast("Viaje completado");
+    },
+    onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo completar el viaje. Reintentá.", "error"),
   });
 
   const zoneName = (id) => zones?.find((z) => z.id === id)?.name ?? "?";
