@@ -28,11 +28,16 @@ def create(db: Session, profile_id: str, full_name: str) -> Driver:
     return driver
 
 
-def update(db: Session, driver_id: str, full_name: str) -> Driver | None:
+def update(
+    db: Session, driver_id: str, full_name: str | None = None, active: bool | None = None
+) -> Driver | None:
     driver = db.get(Driver, driver_id)
     if driver is None:
         return None
-    driver.full_name = full_name
+    if full_name is not None:
+        driver.full_name = full_name
+    if active is not None:
+        driver.active = active
     db.commit()
     db.refresh(driver)
     return driver

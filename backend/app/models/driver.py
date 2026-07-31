@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, String, func, text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database.base import Base
@@ -15,4 +15,5 @@ class Driver(Base):
         unique=True,
     )
     full_name = Column(String, nullable=False)
+    active = Column(Boolean, nullable=False, server_default=text("true"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

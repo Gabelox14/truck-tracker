@@ -10,7 +10,8 @@ class DriverCreate(BaseModel):
 
 
 class DriverUpdate(BaseModel):
-    full_name: str
+    full_name: str | None = None
+    active: bool | None = None
 
 
 class DriverOut(BaseModel):
@@ -19,4 +20,5 @@ class DriverOut(BaseModel):
     id: UUID
     profile_id: UUID
     full_name: str
+    active: bool
     created_at: datetime

@@ -12,7 +12,10 @@ def _attach_is_assigned(db: Session, profile: Profile) -> Profile:
         profile.is_assigned = True
     else:
         profile.is_assigned = (
-            db.query(Driver).filter(Driver.profile_id == profile.id).first() is not None
+            db.query(Driver)
+            .filter(Driver.profile_id == profile.id, Driver.active.is_(True))
+            .first()
+            is not None
         )
     return profile
 

@@ -60,7 +60,7 @@ def get_current_driver(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ) -> Driver:
-    driver = db.query(Driver).filter(Driver.profile_id == user_id).first()
+    driver = db.query(Driver).filter(Driver.profile_id == user_id, Driver.active.is_(True)).first()
     if driver is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -77,7 +77,7 @@ def require_staff_or_driver(
     is_staff = profile is not None and profile.role in ("admin", "dispatcher")
     if is_staff:
         return user_id
-    driver = db.query(Driver).filter(Driver.profile_id == user_id).first()
+    driver = db.query(Driver).filter(Driver.profile_id == user_id, Driver.active.is_(True)).first()
     if driver is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

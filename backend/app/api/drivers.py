@@ -57,7 +57,9 @@ def update_driver(
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    driver = driver_service.update_driver(db, str(driver_id), payload.full_name)
+    driver = driver_service.update_driver(
+        db, str(driver_id), full_name=payload.full_name, active=payload.active
+    )
     if driver is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Driver not found")
     return driver
@@ -75,7 +77,7 @@ def delete_driver(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="No se puede eliminar: tiene viajes asociados",
+            detail="No se puede eliminar: tiene viajes asociados. Desactivalo en su lugar.",
         )
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Driver not found")

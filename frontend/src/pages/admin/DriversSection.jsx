@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
-import { Button, Card, ConfirmButton, EmptyState, ErrorText, Select } from "../../components/ui";
+import { Badge, Button, Card, ConfirmButton, EmptyState, ErrorText, Select } from "../../components/ui";
 import { useToast } from "../../context/ToastContext";
 
 export default function DriversSection() {
@@ -43,6 +43,15 @@ export default function DriversSection() {
       showToast("Chofer eliminado");
     },
     onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo eliminar el chofer", "error"),
+  });
+
+  const toggleActive = useMutation({
+    mutationFn: async ({ id, active }) => (await apiClient.patch(`/drivers/${id}`, { active })).data,
+    onSuccess: (_data, { active }) => {
+      queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      showToast(active ? "Chofer reactivado" : "Chofer desactivado");
+    },
+    onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo actualizar el chofer", "error"),
   });
 
   return (
@@ -88,11 +97,23 @@ export default function DriversSection() {
           <ul className="divide-y divide-slate-100">
             {drivers.map((driver) => (
               <li key={driver.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                <span className="text-sm text-slate-900">{driver.full_name}</span>
-                <ConfirmButton
-                  pending={deleteDriver.isPending}
-                  onConfirm={() => deleteDriver.mutate(driver.id)}
-                />
+                <span className="flex items-center gap-2 text-sm text-slate-900">
+                  {driver.full_name}
+                  {!driver.active && <Badge>Inactivo</Badge>}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    disabled={toggleActive.isPending}
+                    onClick={() => toggleActive.mutate({ id: driver.id, active: !driver.active })}
+                  >
+                    {driver.active ? "Desactivar" : "Reactivar"}
+                  </Button>
+                  <ConfirmButton
+                    pending={deleteDriver.isPending}
+                    onConfirm={() => deleteDriver.mutate(driver.id)}
+                  />
+                </span>
               </li>
             ))}
           </ul>
