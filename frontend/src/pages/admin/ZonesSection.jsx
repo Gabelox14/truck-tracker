@@ -25,6 +25,7 @@ export default function ZonesSection() {
       queryClient.invalidateQueries({ queryKey: ["zones"] });
       setName("");
       setError("");
+      showToast("Zona creada");
     },
     onError: (err) => setError(err.response?.data?.detail ?? "Error al crear la zona"),
   });
@@ -51,6 +52,7 @@ export default function ZonesSection() {
           >
             <Input
               placeholder="Nombre de la zona (ej: Bodega Central)"
+              aria-label="Nombre de la zona"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required

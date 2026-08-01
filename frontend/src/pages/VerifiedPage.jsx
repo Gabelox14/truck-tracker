@@ -35,8 +35,8 @@ export default function VerifiedPage() {
           </>
         ) : (
           <>
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-emerald-700">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-6 w-6 text-slate-700">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>

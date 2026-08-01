@@ -15,13 +15,17 @@ export function ToastProvider({ children }) {
 
   const toneClass = {
     success: "bg-slate-900 text-white",
-    error: "bg-red-600 text-white",
+    error: "border border-red-200 bg-red-50 text-red-700",
   };
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4">
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4"
+      >
         {toasts.map((t) => (
           <div
             key={t.id}

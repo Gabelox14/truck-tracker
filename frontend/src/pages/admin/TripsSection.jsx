@@ -99,6 +99,7 @@ function TripTypeEditor({ trip }) {
       value={trip.trip_type ?? ""}
       onChange={(e) => e.target.value && setTripType.mutate(e.target.value)}
       disabled={setTripType.isPending}
+      aria-label="Tipo de viaje"
       className="!w-auto"
     >
       <option value="" disabled>

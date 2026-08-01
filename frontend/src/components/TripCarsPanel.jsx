@@ -1,17 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { apiClient } from "../lib/apiClient";
 import { uploadVinPhoto } from "../lib/uploadVinPhoto";
 import { useToast } from "../context/ToastContext";
 import { Button, ErrorText, Input } from "./ui";
 
+const MAX_VIN_PHOTO_BYTES = 8 * 1024 * 1024;
+
 function RemoveCarButton({ onConfirm, pending }) {
   const [confirming, setConfirming] = useState(false);
 
   if (confirming) {
     return (
-      <span className="inline-flex items-center gap-2 text-xs">
+      <span className="inline-flex items-center gap-2 text-xs" role="status" aria-live="polite">
         <span className="text-slate-500">¿Quitar?</span>
         <button
           type="button"
@@ -47,8 +49,19 @@ export function TripCarsPanel({ tripId, canAdd = false, canDelete = false }) {
   const { showToast } = useToast();
   const [brand, setBrand] = useState("");
   const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   const { data: cars } = useQuery({
     queryKey: ["trip-cars", tripId],
@@ -75,6 +88,18 @@ export function TripCarsPanel({ tripId, canAdd = false, canDelete = false }) {
     },
     onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo quitar el carro", "error"),
   });
+
+  function handleFileChange(e) {
+    const selected = e.target.files?.[0] ?? null;
+    if (selected && selected.size > MAX_VIN_PHOTO_BYTES) {
+      setError("La foto pesa más de 8MB. Elegí una más liviana.");
+      e.target.value = "";
+      setFile(null);
+      return;
+    }
+    setError("");
+    setFile(selected);
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -126,22 +151,35 @@ export function TripCarsPanel({ tripId, canAdd = false, canDelete = false }) {
       )}
 
       {canAdd && (
-        <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Input
-            placeholder="Marca del carro"
-            value={brand}
-            onChange={(e) => setBrand(e.target.value)}
-            required
-          />
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 outline-none file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-sm file:font-medium file:text-slate-700 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto"
-          />
-          <Button type="submit" disabled={uploading || addCar.isPending}>
-            {uploading ? "Subiendo..." : "Agregar"}
-          </Button>
+        <form onSubmit={handleSubmit} className="mt-3 space-y-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              placeholder="Marca del carro"
+              aria-label="Marca del carro"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              required
+            />
+            <div className="flex items-center gap-2">
+              {previewUrl && (
+                <img
+                  src={previewUrl}
+                  alt="Vista previa de la foto del VIN"
+                  className="h-10 w-10 shrink-0 rounded-md border border-slate-200 object-cover"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                aria-label="Foto del VIN"
+                onChange={handleFileChange}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 outline-none file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-sm file:font-medium file:text-slate-700 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto"
+              />
+            </div>
+            <Button type="submit" disabled={uploading || addCar.isPending}>
+              {uploading ? "Subiendo..." : "Agregar"}
+            </Button>
+          </div>
         </form>
       )}
       <ErrorText>{error}</ErrorText>

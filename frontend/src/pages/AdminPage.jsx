@@ -26,7 +26,12 @@ export default function AdminPage() {
   const isAdmin = profile?.role === "admin";
   const tabs = ALL_TABS.filter((tab) => !tab.adminOnly || isAdmin);
   const [active, setActive] = useState("dashboard");
-  const ActiveComponent = (tabs.find((t) => t.key === active) ?? tabs[0]).Component;
+  const [visited, setVisited] = useState(() => new Set(["dashboard"]));
+
+  function selectTab(key) {
+    setActive(key);
+    setVisited((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }
 
   return (
     <Layout>
@@ -34,7 +39,7 @@ export default function AdminPage() {
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActive(tab.key)}
+            onClick={() => selectTab(tab.key)}
             className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition ${
               active === tab.key
                 ? "border-slate-900 text-slate-900"
@@ -45,9 +50,15 @@ export default function AdminPage() {
           </button>
         ))}
       </nav>
-      <Suspense fallback={<p className="text-sm text-slate-400">Cargando...</p>}>
-        <ActiveComponent />
-      </Suspense>
+      {tabs
+        .filter((tab) => visited.has(tab.key))
+        .map((tab) => (
+          <div key={tab.key} className={tab.key === active ? undefined : "hidden"}>
+            <Suspense fallback={<p className="text-sm text-slate-400">Cargando...</p>}>
+              <tab.Component />
+            </Suspense>
+          </div>
+        ))}
     </Layout>
   );
 }

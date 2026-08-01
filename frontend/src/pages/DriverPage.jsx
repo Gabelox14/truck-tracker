@@ -37,6 +37,7 @@ export default function DriverPage() {
       setOriginZoneId("");
       setDestinationZoneId("");
       setError("");
+      showToast("Viaje iniciado");
     },
     onError: (err) => setError(err.response?.data?.detail ?? "No se pudo iniciar el viaje"),
   });
@@ -89,6 +90,11 @@ export default function DriverPage() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                if (originZoneId === destinationZoneId) {
+                  setError("El destino tiene que ser distinto al origen.");
+                  return;
+                }
+                setError("");
                 startTrip.mutate({
                   truck_id: truckId,
                   origin_zone_id: originZoneId,
@@ -97,7 +103,12 @@ export default function DriverPage() {
               }}
               className="space-y-3"
             >
-              <Select value={truckId} onChange={(e) => setTruckId(e.target.value)} required>
+              <Select
+                value={truckId}
+                onChange={(e) => setTruckId(e.target.value)}
+                aria-label="Camión"
+                required
+              >
                 <option value="" disabled>
                   Camión
                 </option>
@@ -107,7 +118,12 @@ export default function DriverPage() {
                   </option>
                 ))}
               </Select>
-              <Select value={originZoneId} onChange={(e) => setOriginZoneId(e.target.value)} required>
+              <Select
+                value={originZoneId}
+                onChange={(e) => setOriginZoneId(e.target.value)}
+                aria-label="Salgo de"
+                required
+              >
                 <option value="" disabled>
                   Salgo de...
                 </option>
@@ -120,6 +136,7 @@ export default function DriverPage() {
               <Select
                 value={destinationZoneId}
                 onChange={(e) => setDestinationZoneId(e.target.value)}
+                aria-label="Voy a"
                 required
               >
                 <option value="" disabled>
@@ -151,7 +168,7 @@ export default function DriverPage() {
                     <Badge tone="emerald">Completado</Badge>
                   </div>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    {new Date(trip.started_at).toLocaleDateString()}
+                    {new Date(trip.started_at).toLocaleString()}
                   </p>
                 </li>
               ))}

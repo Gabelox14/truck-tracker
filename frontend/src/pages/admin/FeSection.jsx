@@ -5,7 +5,7 @@ import { apiClient } from "../../lib/apiClient";
 import { Button, Card, EmptyState, ErrorText, Select } from "../../components/ui";
 import { useToast } from "../../context/ToastContext";
 
-function useOptions(queryKey, path, labelKey) {
+function useOptions(queryKey, path) {
   const { data } = useQuery({
     queryKey,
     queryFn: async () => (await apiClient.get(path)).data,
@@ -88,7 +88,12 @@ export default function FeSection() {
         </p>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Select value={truckId} onChange={(e) => setTruckId(e.target.value)} className="sm:w-48">
+          <Select
+            value={truckId}
+            onChange={(e) => setTruckId(e.target.value)}
+            aria-label="Filtrar por camión"
+            className="sm:w-48"
+          >
             <option value="">Todos los camiones</option>
             {trucks.map((t) => (
               <option key={t.id} value={t.id}>
@@ -96,7 +101,12 @@ export default function FeSection() {
               </option>
             ))}
           </Select>
-          <Select value={zoneId} onChange={(e) => setZoneId(e.target.value)} className="sm:w-48">
+          <Select
+            value={zoneId}
+            onChange={(e) => setZoneId(e.target.value)}
+            aria-label="Filtrar por zona"
+            className="sm:w-48"
+          >
             <option value="">Todas las zonas</option>
             {zones.map((z) => (
               <option key={z.id} value={z.id}>
@@ -118,7 +128,12 @@ export default function FeSection() {
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto"
             aria-label="Hasta"
           />
-          <Select value={tripType} onChange={(e) => setTripType(e.target.value)} className="sm:w-40">
+          <Select
+            value={tripType}
+            onChange={(e) => setTripType(e.target.value)}
+            aria-label="Filtrar por tipo de viaje"
+            className="sm:w-40"
+          >
             <option value="">Directo o indirecto</option>
             <option value="directo">Directo</option>
             <option value="indirecto">Indirecto</option>

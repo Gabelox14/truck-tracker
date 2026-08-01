@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiClient } from "../../lib/apiClient";
-import { Badge, Card, EmptyState } from "../../components/ui";
+import { Badge, Card, EmptyState, Select } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 
@@ -27,8 +27,25 @@ const ROLE_INFO = [
 
 function RoleReference() {
   return (
-    <Card title="¿Qué puede hacer cada rol?">
-      <ul className="space-y-3">
+    <details className="group rounded-xl border border-slate-200 bg-white shadow-sm">
+      <summary className="cursor-pointer select-none px-5 py-4 text-sm font-semibold text-slate-900 marker:content-none">
+        <span className="inline-flex items-center gap-1.5">
+          ¿Qué puede hacer cada rol?
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5 text-slate-400 transition group-open:rotate-180"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+      </summary>
+      <ul className="space-y-3 border-t border-slate-100 px-5 py-4">
         {ROLE_INFO.map((r) => (
           <li key={r.role} className="flex items-start gap-3">
             <Badge>{r.label}</Badge>
@@ -36,7 +53,7 @@ function RoleReference() {
           </li>
         ))}
       </ul>
-    </Card>
+    </details>
   );
 }
 
@@ -78,17 +95,18 @@ export default function UsersSection() {
                   </p>
                 </div>
                 {isAdmin ? (
-                  <select
+                  <Select
                     value={p.role}
                     onChange={(e) => changeRole.mutate({ id: p.id, role: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm outline-none focus:border-slate-900 sm:w-auto"
+                    aria-label={`Rol de ${p.full_name}`}
+                    className="sm:w-auto"
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
                         {r}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 ) : (
                   <Badge>{p.role}</Badge>
                 )}

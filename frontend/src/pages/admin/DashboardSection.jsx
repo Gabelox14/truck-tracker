@@ -56,11 +56,27 @@ function DailyBarChart({ data }) {
 
   return (
     <div className="overflow-x-auto">
+      <table className="sr-only">
+        <caption>Ingresos por día</caption>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((d) => (
+            <tr key={d.date}>
+              <td>{d.date}</td>
+              <td>{formatMoney(d.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <svg
         viewBox={`0 0 ${Math.max(width, data.length * (barWidth + barGap))} ${height + 24}`}
         className="h-40 w-full"
-        role="img"
-        aria-label="Ingresos por día"
+        aria-hidden="true"
       >
         <line x1="0" y1={height} x2={data.length * (barWidth + barGap)} y2={height} stroke="#e2e8f0" strokeWidth="1" />
         {data.map((d, i) => {

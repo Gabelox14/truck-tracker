@@ -29,6 +29,7 @@ export default function TrucksSection() {
       setCode("");
       setBrand("");
       setError("");
+      showToast("Camión creado");
     },
     onError: (err) => setError(err.response?.data?.detail ?? "Error al crear el camión"),
   });
@@ -56,6 +57,7 @@ export default function TrucksSection() {
         >
           <Input
             placeholder="Placa (ej: ABC123)"
+            aria-label="Placa"
             value={plate}
             onChange={(e) => setPlate(e.target.value)}
             required
@@ -64,10 +66,16 @@ export default function TrucksSection() {
             <>
               <Input
                 placeholder="Código de camión"
+                aria-label="Código de camión"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
               />
-              <Input placeholder="Marca" value={brand} onChange={(e) => setBrand(e.target.value)} />
+              <Input
+                placeholder="Marca"
+                aria-label="Marca"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+              />
             </>
           )}
           <Button type="submit" disabled={createTruck.isPending}>

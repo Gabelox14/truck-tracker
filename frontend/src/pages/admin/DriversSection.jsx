@@ -32,6 +32,7 @@ export default function DriversSection() {
       queryClient.invalidateQueries({ queryKey: ["drivers"] });
       setProfileId("");
       setError("");
+      showToast("Chofer creado");
     },
     onError: (err) => setError(err.response?.data?.detail ?? "Error al crear el chofer"),
   });
@@ -65,7 +66,12 @@ export default function DriversSection() {
           }}
           className="flex flex-col gap-2 sm:flex-row"
         >
-          <Select value={profileId} onChange={(e) => setProfileId(e.target.value)} required>
+          <Select
+            value={profileId}
+            onChange={(e) => setProfileId(e.target.value)}
+            aria-label="Usuario con rol chofer"
+            required
+          >
             <option value="" disabled>
               Seleccionar usuario con rol "driver"
             </option>
