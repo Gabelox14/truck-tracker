@@ -30,14 +30,18 @@ function formatMoney(value) {
   return `$${Number(value ?? 0).toFixed(2)}`;
 }
 
-function StatTile({ label, value, hint }) {
+function Stat({ label, value, hint }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="py-3 first:pt-0 sm:px-5 sm:py-0 sm:first:pl-0">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
-      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+      <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
+      {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
     </div>
   );
+}
+
+function SubLabel({ children }) {
+  return <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{children}</p>;
 }
 
 function DailyBarChart({ data }) {
@@ -121,7 +125,7 @@ export default function DashboardSection() {
   }, [preset, customFrom, customTo]);
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ["fe-stats", dateFrom, dateTo],
+    queryKey: ["dashboard-stats", dateFrom, dateTo],
     queryFn: async () =>
       (
         await apiClient.get("/trips/stats/summary", {
@@ -142,7 +146,7 @@ export default function DashboardSection() {
 
   return (
     <div className="space-y-6">
-      <Card title="Dashboard">
+      <Card>
         <div className="flex flex-wrap items-center gap-2">
           {presets.map((p) => (
             <Button
@@ -172,30 +176,36 @@ export default function DashboardSection() {
             </>
           )}
         </div>
-      </Card>
 
-      {isLoading ? (
-        <p className="text-sm text-slate-400">Cargando...</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatTile label="Total generado" value={formatMoney(stats?.total_amount)} />
-            <StatTile label="Cantidad de viajes" value={stats?.trip_count ?? 0} />
-            <StatTile
+        {isLoading ? (
+          <p className="mt-4 text-sm text-slate-400">Cargando...</p>
+        ) : (
+          <div className="mt-5 grid grid-cols-1 divide-y divide-slate-100 border-t border-slate-100 pt-4 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:pt-5">
+            <Stat label="Total generado" value={formatMoney(stats?.total_amount)} />
+            <Stat label="Cantidad de viajes" value={stats?.trip_count ?? 0} />
+            <Stat
               label="Camión que más generó"
               value={stats?.top_truck ? stats.top_truck.plate : "—"}
               hint={stats?.top_truck ? formatMoney(stats.top_truck.total) : undefined}
             />
           </div>
+        )}
+      </Card>
 
-          <Card title="Ingresos por día">
+      {!isLoading && (
+        <Card title="Ingresos">
+          <SubLabel>Por día</SubLabel>
+          <div className="mt-2">
             <DailyBarChart data={stats?.by_day ?? []} />
-          </Card>
+          </div>
 
-          <Card title="Ingresos por camión">
-            <TruckBarList data={stats?.by_truck ?? []} />
-          </Card>
-        </>
+          <div className="mt-6 border-t border-slate-100 pt-6">
+            <SubLabel>Por camión</SubLabel>
+            <div className="mt-3">
+              <TruckBarList data={stats?.by_truck ?? []} />
+            </div>
+          </div>
+        </Card>
       )}
     </div>
   );
