@@ -13,12 +13,15 @@ function useOptions(queryKey, path, labelKey) {
   return data ?? [];
 }
 
-function buildParams({ truckId, zoneId, dateFrom, dateTo }) {
+const TRIP_TYPE_LABEL = { directo: "Directo", indirecto: "Indirecto" };
+
+function buildParams({ truckId, zoneId, dateFrom, dateTo, tripType }) {
   const params = {};
   if (truckId) params.truck_id = truckId;
   if (zoneId) params.zone_id = zoneId;
   if (dateFrom) params.date_from = dateFrom;
   if (dateTo) params.date_to = dateTo;
+  if (tripType) params.trip_type = tripType;
   return params;
 }
 
@@ -28,13 +31,14 @@ export default function FeSection() {
   const [zoneId, setZoneId] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [tripType, setTripType] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
 
   const trucks = useOptions(["trucks"], "/trucks");
   const zones = useOptions(["zones"], "/zones");
 
-  const filters = { truckId, zoneId, dateFrom, dateTo };
+  const filters = { truckId, zoneId, dateFrom, dateTo, tripType };
   const { data: rows, isLoading } = useQuery({
     queryKey: ["fe-preview", filters],
     queryFn: async () =>
@@ -46,6 +50,7 @@ export default function FeSection() {
     setZoneId("");
     setDateFrom("");
     setDateTo("");
+    setTripType("");
   }
 
   async function handleDownload() {
@@ -72,7 +77,7 @@ export default function FeSection() {
     }
   }
 
-  const hasFilters = truckId || zoneId || dateFrom || dateTo;
+  const hasFilters = truckId || zoneId || dateFrom || dateTo || tripType;
 
   return (
     <div className="space-y-6">
@@ -113,6 +118,11 @@ export default function FeSection() {
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto"
             aria-label="Hasta"
           />
+          <Select value={tripType} onChange={(e) => setTripType(e.target.value)} className="sm:w-40">
+            <option value="">Directo o indirecto</option>
+            <option value="directo">Directo</option>
+            <option value="indirecto">Indirecto</option>
+          </Select>
           {hasFilters && (
             <Button variant="ghost" onClick={clearFilters}>
               Limpiar filtros
@@ -147,6 +157,7 @@ export default function FeSection() {
                   <th className="py-2 pr-3 font-medium">Placa</th>
                   <th className="py-2 pr-3 font-medium">Destino inicial</th>
                   <th className="py-2 pr-3 font-medium">Destino final</th>
+                  <th className="py-2 pr-3 font-medium">Tipo</th>
                   <th className="py-2 pr-3 font-medium">Monto</th>
                   <th className="py-2 pr-3 font-medium">Marca</th>
                   <th className="py-2 pr-3 font-medium">VIN</th>
@@ -159,6 +170,9 @@ export default function FeSection() {
                     <td className="py-2 pr-3 text-slate-900">{row.truck_plate || "—"}</td>
                     <td className="py-2 pr-3 text-slate-500">{row.origin || "—"}</td>
                     <td className="py-2 pr-3 text-slate-500">{row.destination || "—"}</td>
+                    <td className="py-2 pr-3 text-slate-500">
+                      {TRIP_TYPE_LABEL[row.trip_type] || "—"}
+                    </td>
                     <td className="py-2 pr-3 text-slate-900">
                       {row.amount != null ? `$${Number(row.amount).toFixed(2)}` : "—"}
                     </td>

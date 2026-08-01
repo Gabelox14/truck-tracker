@@ -4,16 +4,19 @@ from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
+TRIP_TYPE_LABEL = {"directo": "Directo", "indirecto": "Indirecto"}
+
 FE_HEADERS = [
     "Código de Camión",
     "Placa",
     "Destino Inicial",
     "Destino Final",
+    "Tipo de Viaje",
     "Monto",
     "Marca",
     "Foto VIN",
 ]
-FE_COLUMN_WIDTHS = [18, 12, 18, 18, 12, 18, 14]
+FE_COLUMN_WIDTHS = [18, 12, 18, 18, 14, 12, 18, 14]
 
 
 def build_fe_workbook(rows: list[dict]) -> BytesIO:
@@ -31,6 +34,7 @@ def build_fe_workbook(rows: list[dict]) -> BytesIO:
                 row.get("truck_plate") or "",
                 row.get("origin") or "",
                 row.get("destination") or "",
+                TRIP_TYPE_LABEL.get(row.get("trip_type"), ""),
                 float(row["amount"]) if row.get("amount") is not None else "",
                 row.get("brand") or "",
                 "Ver foto" if row.get("vin_photo_url") else "",

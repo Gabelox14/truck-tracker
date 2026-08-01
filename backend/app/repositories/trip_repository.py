@@ -32,6 +32,7 @@ def list_for_export(
     zone_id: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    trip_type: str | None = None,
 ) -> list[Trip]:
     query = db.query(Trip)
     if truck_id:
@@ -44,6 +45,8 @@ def list_for_export(
         query = query.filter(Trip.started_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
     if date_to:
         query = query.filter(Trip.started_at <= datetime.combine(date_to, time.max, tzinfo=timezone.utc))
+    if trip_type:
+        query = query.filter(Trip.trip_type == trip_type)
     return query.order_by(Trip.started_at.desc()).all()
 
 
@@ -78,6 +81,16 @@ def update_amount(db: Session, trip_id: str, amount: float) -> Trip | None:
     if trip is None:
         return None
     trip.amount = amount
+    db.commit()
+    db.refresh(trip)
+    return trip
+
+
+def update_trip_type(db: Session, trip_id: str, trip_type: str) -> Trip | None:
+    trip = db.get(Trip, trip_id)
+    if trip is None:
+        return None
+    trip.trip_type = trip_type
     db.commit()
     db.refresh(trip)
     return trip

@@ -17,7 +17,8 @@ from app.database.session import get_db
 from app.models.driver import Driver
 from app.models.trip import Trip
 from app.schemas.export import FeRowOut
-from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut
+from app.schemas.stats import StatsSummaryOut
+from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut, TripTypeUpdate
 from app.schemas.trip_car import TripCarCreate, TripCarOut
 from app.services import export_service, trip_service
 
@@ -34,12 +35,23 @@ def list_trips(
     return trip_service.list_trips_for_user(db, user_id, limit=limit, offset=offset)
 
 
+@router.get("/stats/summary", response_model=StatsSummaryOut)
+def stats_summary(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    _staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    return trip_service.build_stats(db, date_from=date_from, date_to=date_to)
+
+
 @router.get("/export/fe/preview", response_model=list[FeRowOut])
 def preview_fe(
     truck_id: UUID | None = None,
     zone_id: UUID | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    trip_type: str | None = None,
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -49,6 +61,7 @@ def preview_fe(
         zone_id=str(zone_id) if zone_id else None,
         date_from=date_from,
         date_to=date_to,
+        trip_type=trip_type,
     )
 
 
@@ -58,6 +71,7 @@ def export_fe(
     zone_id: UUID | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    trip_type: str | None = None,
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -67,6 +81,7 @@ def export_fe(
         zone_id=str(zone_id) if zone_id else None,
         date_from=date_from,
         date_to=date_to,
+        trip_type=trip_type,
     )
     buffer = export_service.build_fe_workbook(rows)
     return StreamingResponse(
@@ -121,6 +136,16 @@ def set_trip_amount(
     db: Session = Depends(get_db),
 ):
     return trip_service.update_trip_amount(db, str(trip.id), payload.amount)
+
+
+@router.patch("/{trip_id}/type", response_model=TripOut)
+def set_trip_type(
+    payload: TripTypeUpdate,
+    trip: Trip = Depends(require_trip_access),
+    _staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    return trip_service.update_trip_type(db, str(trip.id), payload.trip_type)
 
 
 @router.get("/{trip_id}/cars", response_model=list[TripCarOut])

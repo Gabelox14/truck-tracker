@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from "react";
 import { Layout } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
 
+const DashboardSection = lazy(() => import("./admin/DashboardSection"));
 const TrucksSection = lazy(() => import("./admin/TrucksSection"));
 const DriversSection = lazy(() => import("./admin/DriversSection"));
 const ZonesSection = lazy(() => import("./admin/ZonesSection"));
@@ -11,6 +12,7 @@ const UsersSection = lazy(() => import("./admin/UsersSection"));
 const FeSection = lazy(() => import("./admin/FeSection"));
 
 const ALL_TABS = [
+  { key: "dashboard", label: "Dashboard", Component: DashboardSection },
   { key: "trucks", label: "Camiones", Component: TrucksSection },
   { key: "drivers", label: "Choferes", Component: DriversSection },
   { key: "zones", label: "Zonas", Component: ZonesSection },
@@ -23,7 +25,7 @@ export default function AdminPage() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const tabs = ALL_TABS.filter((tab) => !tab.adminOnly || isAdmin);
-  const [active, setActive] = useState("trucks");
+  const [active, setActive] = useState("dashboard");
   const ActiveComponent = (tabs.find((t) => t.key === active) ?? tabs[0]).Component;
 
   return (

@@ -55,7 +55,7 @@ export default function TrucksSection() {
           className="flex flex-col gap-2 sm:flex-row"
         >
           <Input
-            placeholder="Patente (ej: ABC123)"
+            placeholder="Placa (ej: ABC123)"
             value={plate}
             onChange={(e) => setPlate(e.target.value)}
             required

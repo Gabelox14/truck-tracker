@@ -1,7 +1,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+
+from app.models.trip import TRIP_TYPES
 
 
 class TripCreate(BaseModel):
@@ -20,6 +22,17 @@ class TripAmountUpdate(BaseModel):
     amount: float
 
 
+class TripTypeUpdate(BaseModel):
+    trip_type: str
+
+    @field_validator("trip_type")
+    @classmethod
+    def trip_type_must_be_valid(cls, v: str) -> str:
+        if v not in TRIP_TYPES:
+            raise ValueError(f"trip_type must be one of {TRIP_TYPES}")
+        return v
+
+
 class TripOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -32,3 +45,4 @@ class TripOut(BaseModel):
     started_at: datetime
     completed_at: datetime | None
     amount: float | None
+    trip_type: str | None = None

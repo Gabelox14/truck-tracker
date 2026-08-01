@@ -4,11 +4,15 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.database.base import Base
 
 STATUSES = ("in_progress", "completed")
+TRIP_TYPES = ("directo", "indirecto")
 
 
 class Trip(Base):
     __tablename__ = "trips"
-    __table_args__ = (CheckConstraint(f"status IN {STATUSES}", name="ck_trips_status"),)
+    __table_args__ = (
+        CheckConstraint(f"status IN {STATUSES}", name="ck_trips_status"),
+        CheckConstraint(f"trip_type IN {TRIP_TYPES}", name="ck_trips_trip_type"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     driver_id = Column(UUID(as_uuid=True), ForeignKey("drivers.id"), nullable=False, index=True)
@@ -19,3 +23,4 @@ class Trip(Base):
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     amount = Column(Numeric(10, 2), nullable=True)
+    trip_type = Column(String, nullable=True)

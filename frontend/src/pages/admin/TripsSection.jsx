@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
-import { Badge, Button, Card, EmptyState, Input } from "../../components/ui";
+import { Badge, Button, Card, EmptyState, Input, Select } from "../../components/ui";
 import { TripCarsPanel } from "../../components/TripCarsPanel";
 import { useToast } from "../../context/ToastContext";
 
@@ -81,6 +81,35 @@ function AmountEditor({ trip }) {
   );
 }
 
+function TripTypeEditor({ trip }) {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+
+  const setTripType = useMutation({
+    mutationFn: async (trip_type) => (await apiClient.patch(`/trips/${trip.id}/type`, { trip_type })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      showToast("Tipo de viaje guardado");
+    },
+    onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo guardar el tipo de viaje", "error"),
+  });
+
+  return (
+    <Select
+      value={trip.trip_type ?? ""}
+      onChange={(e) => e.target.value && setTripType.mutate(e.target.value)}
+      disabled={setTripType.isPending}
+      className="!w-auto"
+    >
+      <option value="" disabled>
+        Tipo de viaje
+      </option>
+      <option value="directo">Directo</option>
+      <option value="indirecto">Indirecto</option>
+    </Select>
+  );
+}
+
 function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -103,6 +132,7 @@ function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <AmountEditor trip={trip} />
+        <TripTypeEditor trip={trip} />
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}

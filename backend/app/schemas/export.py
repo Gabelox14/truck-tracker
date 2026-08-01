@@ -9,3 +9,4 @@ class FeRowOut(BaseModel):
     amount: float | None = None
     brand: str | None = None
     vin_photo_url: str | None = None
+    trip_type: str | None = None
