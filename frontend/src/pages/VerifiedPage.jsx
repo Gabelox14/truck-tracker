@@ -41,7 +41,7 @@ export default function VerifiedPage() {
               </svg>
             </div>
             <h1 className="mt-4 text-xl font-semibold text-slate-900">Correo verificado</h1>
-            <p className="mt-2 text-sm text-slate-500">Bienvenido a Full Soluciones S.A G&amp;A</p>
+            <p className="mt-2 text-sm text-slate-500">Bienvenido a Full Soluciones G&amp;A S.A</p>
           </>
         )}
         <p className="mt-6 text-xs text-slate-400">Te llevamos a iniciar sesión...</p>

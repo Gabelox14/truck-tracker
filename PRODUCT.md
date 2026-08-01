@@ -38,7 +38,7 @@ Deliberately not a GPS/real-time location tracker. Trips are tracked by state (i
 
 ## Brand Commitments
 
-Confirmed brand name: "Full Soluciones S.A G&A". Used verbatim in the app header, login screen, browser title, and API title — not abbreviated or shortened.
+Confirmed brand name: "Full Soluciones G&A S.A". Used verbatim in the app header, login screen, browser title, and API title — not abbreviated or shortened.
 
 ## Evidence on Hand
 

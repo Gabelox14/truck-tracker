@@ -1,5 +1,5 @@
 ---
-name: Full Soluciones S.A G&A
+name: Full Soluciones G&A S.A
 description: Internal dispatch tool for a car-hauling operation — zone-based trip tracking, cargo logging, and billing.
 colors:
   ink-slate: "#0f172a"
@@ -73,7 +73,7 @@ components:
     padding: "8px 12px"
 ---
 
-# Design System: Full Soluciones S.A G&A
+# Design System: Full Soluciones G&A S.A
 
 ## Overview
 
@@ -118,7 +118,7 @@ Cool slate neutrals carry the entire interface; color is rationed to exactly thr
 **Character:** Plain and legible over expressive. The system uses exactly three weights (400 regular body, 500 medium labels/buttons, 600 semibold titles) and never strays into display-scale type; the largest text on screen is a 24px page title.
 
 ### Hierarchy
-- **Title** (600, 24px, 1.3 line-height, -0.01em tracking): page-level heading only ("Full Soluciones S.A G&A" in the header, "Iniciar sesión" / "Crear cuenta" on the login card).
+- **Title** (600, 24px, 1.3 line-height, -0.01em tracking): page-level heading only ("Full Soluciones G&A S.A" in the header, "Iniciar sesión" / "Crear cuenta" on the login card).
 - **Section Label** (600, 14px): card headers inside `Card` — "Nuevo camión", "Usuarios", "Viaje en curso".
 - **Body** (400, 14px, 1.5 line-height): everything else — row content, form values, descriptions.
 - **Label** (500, 14px): form field labels, buttons, nav tab text.

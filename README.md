@@ -1,4 +1,4 @@
-# Full Soluciones S.A G&A
+# Full Soluciones G&A S.A
 
 Monorepo con frontend (React + Vite) y backend (FastAPI), sobre Supabase (Postgres + Auth).
 
