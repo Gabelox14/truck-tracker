@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
+import { formatMoney } from "../../lib/formatMoney";
 import { Button, Card, EmptyState } from "../../components/ui";
 
 function toISODate(d) {
@@ -24,10 +25,6 @@ function presetRange(preset) {
     return { dateFrom: toISODate(from), dateTo: to };
   }
   return { dateFrom: "", dateTo: "" };
-}
-
-function formatMoney(value) {
-  return `$${Number(value ?? 0).toFixed(2)}`;
 }
 
 function Stat({ label, value, hint }) {

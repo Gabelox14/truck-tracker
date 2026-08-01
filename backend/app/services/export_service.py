@@ -17,6 +17,8 @@ FE_HEADERS = [
     "Foto VIN",
 ]
 FE_COLUMN_WIDTHS = [18, 12, 18, 18, 14, 12, 18, 14]
+MONTO_COLUMN = FE_HEADERS.index("Monto") + 1
+MONTO_NUMBER_FORMAT = '"₡"#,##0.00'
 
 
 def build_fe_workbook(rows: list[dict]) -> BytesIO:
@@ -40,6 +42,9 @@ def build_fe_workbook(rows: list[dict]) -> BytesIO:
                 "Ver foto" if row.get("vin_photo_url") else "",
             ]
         )
+        if row.get("amount") is not None:
+            ws.cell(row=ws.max_row, column=MONTO_COLUMN).number_format = MONTO_NUMBER_FORMAT
+
         vin_photo_url = row.get("vin_photo_url")
         if vin_photo_url:
             cell = ws.cell(row=ws.max_row, column=len(FE_HEADERS))

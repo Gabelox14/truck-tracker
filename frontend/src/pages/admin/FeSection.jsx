@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
+import { formatMoney } from "../../lib/formatMoney";
 import { Button, Card, EmptyState, ErrorText, Select } from "../../components/ui";
 import { useToast } from "../../context/ToastContext";
 
@@ -189,7 +190,7 @@ export default function FeSection() {
                       {TRIP_TYPE_LABEL[row.trip_type] || "—"}
                     </td>
                     <td className="py-2 pr-3 text-slate-900">
-                      {row.amount != null ? `$${Number(row.amount).toFixed(2)}` : "—"}
+                      {row.amount != null ? formatMoney(row.amount) : "—"}
                     </td>
                     <td className="py-2 pr-3 text-slate-500">{row.brand || "—"}</td>
                     <td className="py-2 pr-3">

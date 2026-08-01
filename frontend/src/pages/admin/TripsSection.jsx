@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
+import { formatMoney } from "../../lib/formatMoney";
 import { Badge, Button, Card, EmptyState, Input, Select } from "../../components/ui";
 import { TripCarsPanel } from "../../components/TripCarsPanel";
 import { useToast } from "../../context/ToastContext";
@@ -76,7 +77,7 @@ function AmountEditor({ trip }) {
           : "border-dashed border-slate-300 text-slate-500 hover:border-slate-900 hover:text-slate-900"
       }`}
     >
-      {hasAmount ? `$${Number(trip.amount).toFixed(2)}` : "+ Agregar monto"}
+      {hasAmount ? formatMoney(trip.amount) : "+ Agregar monto"}
     </button>
   );
 }
