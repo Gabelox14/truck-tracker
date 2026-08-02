@@ -47,8 +47,8 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-10 text-center">
-          <img src="/logo.png" alt="" className="mx-auto h-auto w-60" />
+        <div className="mb-6 text-center sm:mb-10">
+          <img src="/logo.png" alt="" className="mx-auto h-auto w-32 sm:w-60" />
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">Full Soluciones G&amp;A S.A</h1>
           <p className="mt-1 text-sm text-slate-500">Gestión de flota y viajes</p>
         </div>
