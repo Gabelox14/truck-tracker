@@ -17,5 +17,11 @@ services:
         sync: false
       - key: ENVIRONMENT
         value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5
+      - key: ANTHROPIC_EFFORT
+        value: low
       - key: PYTHON_VERSION
-        value: 3.10.14
+        value: 3.12.10
