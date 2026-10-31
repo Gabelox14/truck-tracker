@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -39,10 +40,11 @@ def list_trips(
 def stats_summary(
     date_from: date | None = None,
     date_to: date | None = None,
+    currency: Literal["CRC", "USD"] = "CRC",
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    return trip_service.build_stats(db, date_from=date_from, date_to=date_to)
+    return trip_service.build_stats(db, date_from=date_from, date_to=date_to, currency=currency)
 
 
 @router.get("/export/fe/preview", response_model=list[FeRowOut])

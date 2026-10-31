@@ -141,15 +141,24 @@ def build_fe_rows(
     return rows
 
 
-def build_stats(db: Session, date_from=None, date_to=None) -> dict:
+def build_stats(db: Session, date_from=None, date_to=None, currency: str = "CRC") -> dict:
+    """Montos de una sola moneda (colones y dólares nunca se suman); la cantidad
+    de viajes cuenta todos los del rango."""
     trips = trip_repository.list_for_export(db, date_from=date_from, date_to=date_to)
     trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
+
+    totals_by_currency: dict[str, float] = {}
+    for trip in trips:
+        if trip.amount is not None:
+            totals_by_currency[trip.currency] = totals_by_currency.get(trip.currency, 0.0) + float(trip.amount)
 
     total_amount = 0.0
     by_day: dict[str, float] = {}
     by_truck: dict[str, dict] = {}
 
     for trip in trips:
+        if trip.currency != currency:
+            continue
         amount = float(trip.amount) if trip.amount is not None else 0.0
         total_amount += amount
 
@@ -176,6 +185,9 @@ def build_stats(db: Session, date_from=None, date_to=None) -> dict:
     top_truck = by_truck_list[0] if by_truck_list and by_truck_list[0]["total"] > 0 else None
 
     return {
+        "currency": currency,
+        "totals_by_currency": {key: round(value, 2) for key, value in totals_by_currency.items()},
+        "pending_review": sum(1 for trip in trips if trip.review_status == "needs_review"),
         "total_amount": round(total_amount, 2),
         "trip_count": len(trips),
         "top_truck": top_truck,

@@ -1,8 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.trip import TripOut
+from app.schemas.trip_car import TripCarOut
 
 VinLocation = Literal["parabrisas", "puerta", "documento", "otro"]
 ImageQuality = Literal["buena", "regular", "mala"]
@@ -152,6 +155,45 @@ class TripAudioResult(BaseModel):
     usage: AiUsageOut | None
 
 
+class IntakeFileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
+    id: UUID
+    kind: Literal["vin_photo", "audio"]
+    status: Literal["processed", "failed"]
+    trip_id: UUID | None
+    mime_type: str
+    size_bytes: int
+    transcript: str | None
+    duration_seconds: float | None
+    extraction: dict | None
+    error: str | None
+    ai_model: str | None
+    input_tokens: int | None
+    output_tokens: int | None
+    created_by: UUID | None
+    created_at: datetime
+
+
+class AttachFileIn(BaseModel):
+    trip_id: UUID
+
+
+class DraftTripCreate(BaseModel):
+    """Viaje creado por el staff a partir de borradores (fotos y/o audios sin viaje)."""
+
+    file_ids: list[UUID] = Field(min_length=1)
+    driver_id: UUID
+    truck_id: UUID
+    origin_zone_id: UUID
+    destination_zone_id: UUID
+    trip_type: Literal["directo", "indirecto"] | None = None
+    amount: float | None = Field(default=None, ge=0)
+    currency: Currency = "CRC"
+    trip_date: date | None = None
+    completed: bool = True
+
+
 class AudioIntakeOut(TripAudioResult):
     """Resultado guardado; trip_review_* refleja cómo quedó el viaje si se ligó a uno."""
 
@@ -160,3 +202,9 @@ class AudioIntakeOut(TripAudioResult):
     trip_review_status: ReviewStatus | None = None
     trip_review_reasons: list[str] = []
     duplicate: bool = False
+
+
+class ReviewQueueOut(BaseModel):
+    trips: list[TripOut]
+    cars: list[TripCarOut]
+    drafts: list[IntakeFileOut]

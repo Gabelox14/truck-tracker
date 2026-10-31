@@ -18,6 +18,16 @@ def list_all(
     return query.order_by(Trip.started_at.desc()).limit(limit).offset(offset).all()
 
 
+def list_needing_review(db: Session, limit: int = MAX_LIMIT) -> list[Trip]:
+    return (
+        db.query(Trip)
+        .filter(Trip.review_status == "needs_review")
+        .order_by(Trip.started_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
 def get(db: Session, trip_id: str) -> Trip | None:
     return db.get(Trip, trip_id)
 

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
+import { IntakeUpload } from "../components/IntakeUpload";
 import { Badge, Button, Card, EmptyState, ErrorText, Select } from "../components/ui";
 import { apiClient } from "../lib/apiClient";
 import { Layout } from "../components/Layout";
@@ -84,6 +86,15 @@ export default function DriverPage() {
                 Marcar como llegado
               </Button>
             </div>
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <IntakeUpload tripId={activeTrip.id} title="Fotos del VIN y nota de voz" />
+              <Link
+                to={`/viajes/${activeTrip.id}`}
+                className="mt-3 inline-block text-sm text-slate-500 hover:text-slate-900 hover:underline"
+              >
+                Ver lo que lleva este viaje
+              </Link>
+            </div>
           </Card>
         ) : (
           <Card title="Iniciar viaje">
@@ -162,9 +173,9 @@ export default function DriverPage() {
               {history.map((trip) => (
                 <li key={trip.id} className="py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm text-slate-900">
+                    <Link to={`/viajes/${trip.id}`} className="text-sm text-slate-900 hover:underline">
                       {zoneName(trip.origin_zone_id)} → {zoneName(trip.destination_zone_id)}
-                    </span>
+                    </Link>
                     <Badge tone="emerald">Completado</Badge>
                   </div>
                   <p className="mt-0.5 text-xs text-slate-400">

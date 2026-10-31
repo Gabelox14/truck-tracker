@@ -11,6 +11,7 @@ import VerifiedPage from "./pages/VerifiedPage";
 
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const DriverPage = lazy(() => import("./pages/DriverPage"));
+const TripPage = lazy(() => import("./pages/TripPage"));
 
 function RouteFallback() {
   return <div className="flex min-h-screen items-center justify-center text-slate-500">Cargando...</div>;
@@ -67,6 +68,16 @@ function App() {
                 <ProtectedRoute requireAssigned>
                   <Suspense fallback={<RouteFallback />}>
                     <DriverPage />
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/viajes/:tripId"
+              element={
+                <ProtectedRoute requireAssigned>
+                  <Suspense fallback={<RouteFallback />}>
+                    <TripPage />
                   </Suspense>
                 </ProtectedRoute>
               }

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { apiClient } from "../../lib/apiClient";
-import { formatMoney } from "../../lib/formatMoney";
-import { Badge, Button, Card, EmptyState, Input, Select } from "../../components/ui";
+import { CURRENCIES, formatMoney } from "../../lib/formatMoney";
+import { Badge, Button, Card, EmptyState, Input, ReviewBadge, Select } from "../../components/ui";
 import { TripCarsPanel } from "../../components/TripCarsPanel";
 import { useToast } from "../../context/ToastContext";
 
@@ -24,10 +25,11 @@ function AmountEditor({ trip }) {
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(trip.amount ?? "");
+  const [currency, setCurrency] = useState(trip.currency ?? "CRC");
 
   const setTripAmount = useMutation({
     mutationFn: async (value) =>
-      (await apiClient.patch(`/trips/${trip.id}/amount`, { amount: Number(value) })).data,
+      (await apiClient.patch(`/trips/${trip.id}/amount`, { amount: Number(value), currency })).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trips"] });
       setEditing(false);
@@ -55,6 +57,13 @@ function AmountEditor({ trip }) {
           autoFocus
           required
         />
+        <Select value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Moneda" className="!w-auto">
+          {CURRENCIES.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </Select>
         <Button type="submit" disabled={setTripAmount.isPending}>
           Guardar
         </Button>
@@ -77,7 +86,7 @@ function AmountEditor({ trip }) {
           : "border-dashed border-slate-300 text-slate-500 hover:border-slate-900 hover:text-slate-900"
       }`}
     >
-      {hasAmount ? formatMoney(trip.amount) : "+ Agregar monto"}
+      {hasAmount ? formatMoney(trip.amount, trip.currency) : "+ Agregar monto"}
     </button>
   );
 }
@@ -121,9 +130,12 @@ function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
         <span className="text-sm font-medium text-slate-900">
           {driverNames[trip.driver_id] ?? "Chofer"} · {truckPlates[trip.truck_id] ?? "Camión"}
         </span>
-        <Badge tone={trip.status === "completed" ? "emerald" : "amber"}>
-          {trip.status === "completed" ? "Completado" : "En curso"}
-        </Badge>
+        <span className="flex items-center gap-2">
+          <ReviewBadge status={trip.review_status} />
+          <Badge tone={trip.status === "completed" ? "emerald" : "amber"}>
+            {trip.status === "completed" ? "Completado" : "En curso"}
+          </Badge>
+        </span>
       </div>
       <p className="mt-1 text-sm text-slate-500">
         {zoneNames[trip.origin_zone_id] ?? "?"} → {zoneNames[trip.destination_zone_id] ?? "?"}
@@ -142,8 +154,11 @@ function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
         >
           {expanded ? "Ocultar carros" : "Ver carros"}
         </button>
+        <Link to={`/viajes/${trip.id}`} className="text-sm text-slate-500 hover:text-slate-900 hover:underline">
+          Abrir viaje
+        </Link>
       </div>
-      {expanded && <TripCarsPanel tripId={trip.id} canAdd canDelete />}
+      {expanded && <TripCarsPanel tripId={trip.id} canAdd canDelete canEdit />}
     </li>
   );
 }

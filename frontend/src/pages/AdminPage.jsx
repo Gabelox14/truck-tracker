@@ -10,9 +10,11 @@ const ZonesSection = lazy(() => import("./admin/ZonesSection"));
 const TripsSection = lazy(() => import("./admin/TripsSection"));
 const UsersSection = lazy(() => import("./admin/UsersSection"));
 const FeSection = lazy(() => import("./admin/FeSection"));
+const ReviewSection = lazy(() => import("./admin/ReviewSection"));
 
 const ALL_TABS = [
   { key: "dashboard", label: "Dashboard", Component: DashboardSection },
+  { key: "review", label: "Por revisar", Component: ReviewSection },
   { key: "trucks", label: "Camiones", Component: TrucksSection },
   { key: "drivers", label: "Choferes", Component: DriversSection },
   { key: "zones", label: "Zonas", Component: ZonesSection },

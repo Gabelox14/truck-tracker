@@ -4,19 +4,35 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import can_access_trip, ensure_trip_access, is_staff_user, require_staff_or_driver
+from app.api.deps import (
+    can_access_trip,
+    ensure_trip_access,
+    is_staff_user,
+    require_staff,
+    require_staff_or_driver,
+)
 from app.core.config import settings
 from app.database.session import get_db
 from app.models.intake_file import IntakeFile
 from app.models.trip import Trip
 from app.repositories import intake_file_repository
-from app.schemas.intake import AudioIntakeOut, FileUrlOut, VinPhotoIntakeOut
+from app.schemas.intake import (
+    AttachFileIn,
+    AudioIntakeOut,
+    DraftTripCreate,
+    FileUrlOut,
+    IntakeFileOut,
+    ReviewQueueOut,
+    VinPhotoIntakeOut,
+)
+from app.schemas.trip import TripOut
 from app.services import (
     audio_intake_service,
     audio_service,
     claude_service,
     image_service,
     intake_service,
+    review_service,
     storage_service,
     transcription_service,
 )
@@ -143,3 +159,70 @@ def get_file_url(
     except storage_service.StorageError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
     return FileUrlOut(url=url, expires_in=storage_service.SIGNED_URL_SECONDS)
+
+
+@router.get("/files", response_model=list[IntakeFileOut])
+def list_trip_files(
+    trip_id: UUID,
+    user_id: str = Depends(require_staff_or_driver),
+    db: Session = Depends(get_db),
+):
+    ensure_trip_access(db, user_id, trip_id)
+    return intake_file_repository.list_for_trip(db, str(trip_id))
+
+
+@router.get("/review-queue", response_model=ReviewQueueOut)
+def get_review_queue(
+    _staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    return review_service.review_queue(db)
+
+
+@router.post("/files/{file_id}/attach", response_model=TripOut)
+def attach_draft(
+    file_id: UUID,
+    payload: AttachFileIn,
+    staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    record = get_accessible_file(db, staff_id, file_id)
+    trip = ensure_trip_access(db, staff_id, payload.trip_id)
+    try:
+        review_service.attach_file(db, record, trip, staff_id)
+    except review_service.DraftError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    db.refresh(trip)
+    return trip
+
+
+@router.post("/drafts/create-trip", response_model=TripOut, status_code=status.HTTP_201_CREATED)
+def create_trip_from_drafts(
+    payload: DraftTripCreate,
+    staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    try:
+        return review_service.create_trip_from_drafts(db, payload, staff_id)
+    except review_service.DraftError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El chofer, el camión o una zona no existe")
+
+
+@router.delete("/files/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
+def discard_draft(
+    file_id: UUID,
+    staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+    storage: storage_service.SupabaseStorage = Depends(get_storage),
+):
+    record = get_accessible_file(db, staff_id, file_id)
+    try:
+        review_service.discard_draft(db, record, storage)
+    except review_service.DraftError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except storage_service.StorageError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
