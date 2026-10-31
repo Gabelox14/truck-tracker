@@ -2,8 +2,9 @@ import io
 
 from PIL import Image
 
-from app.schemas.intake import VinBox, VinPhotoExtraction
+from app.schemas.intake import PlaceExtraction, TripAudioExtraction, VehicleMention, VinBox, VinPhotoExtraction
 from app.services.claude_service import ClaudeUsage
+from app.services.transcription_service import Transcription
 
 
 def make_jpeg(width: int = 800, height: int = 600, color=(200, 200, 200), exif_orientation: int | None = None) -> bytes:
@@ -37,10 +38,17 @@ def make_extraction(**overrides) -> VinPhotoExtraction:
 class FakeExtractor:
     """Reemplaza a Claude: devuelve las lecturas dadas, en orden."""
 
-    def __init__(self, *readings: VinPhotoExtraction, model: str = "claude-sonnet-5-5"):
+    def __init__(self, *readings: VinPhotoExtraction, trip_readings=(), model: str = "claude-sonnet-5-5"):
         self.readings = list(readings)
+        self.trip_readings = list(trip_readings)
         self.model = model
         self.calls: list[dict] = []
+        self.trip_calls: list[dict] = []
+
+    def extract_trip(self, transcript, zone_names, today):
+        self.trip_calls.append({"transcript": transcript, "zone_names": zone_names, "today": today})
+        reading = self.trip_readings.pop(0) if len(self.trip_readings) > 1 else self.trip_readings[0]
+        return reading, ClaudeUsage(model=self.model, input_tokens=600, output_tokens=150)
 
     def read_vin_photo(self, image, *, is_crop: bool = False):
         self.calls.append({"is_crop": is_crop, "width": image.width, "height": image.height})
@@ -75,6 +83,11 @@ class FailingExtractor:
         self.message = message
 
     def read_vin_photo(self, image, *, is_crop: bool = False):
+        from app.services.claude_service import ClaudeExtractionError
+
+        raise ClaudeExtractionError(self.message)
+
+    def extract_trip(self, transcript, zone_names, today):
         from app.services.claude_service import ClaudeExtractionError
 
         raise ClaudeExtractionError(self.message)
@@ -122,3 +135,112 @@ def seed_fleet(db):
         destination=destination,
         trip=trip,
     )
+
+
+def place(spoken: str, normalized: str, zone: str | None) -> PlaceExtraction:
+    return PlaceExtraction(spoken=spoken, normalized=normalized, zone=zone)
+
+
+def make_trip_extraction(**overrides) -> TripAudioExtraction:
+    values = {
+        "origin": place("el Coyol", "El Coyol, Alajuela", "Coyol"),
+        "destination": place("la Uruca", "La Uruca, San José", "Uruca"),
+        "cost_amount": 50000,
+        "cost_currency": "CRC",
+        "cost_spoken": "50 rojos",
+        "vehicle_mentions": [VehicleMention(make="Toyota", model="Hilux", color="blanco", plate=None)],
+        "trip_date": None,
+        "notes": None,
+        "confidence": 0.9,
+    }
+    values.update(overrides)
+    return TripAudioExtraction(**values)
+
+
+def make_ogg(seed: str = "nota") -> bytes:
+    """Firma OGG válida; el contenido no importa porque la transcripción va simulada."""
+    return b"OggS" + bytes([0, 2]) + seed.encode() * 40
+
+
+class FakeTranscriber:
+    model = "whisper-large-v3"
+
+    def __init__(self, text: str = "Salí del Coyol a la Uruca con una Hilux blanca, fueron 50 rojos", duration: float = 42.0):
+        self.text = text
+        self.duration = duration
+        self.calls: list[dict] = []
+
+    def transcribe(self, data, filename, media_type, prompt):
+        self.calls.append({"filename": filename, "media_type": media_type, "prompt": prompt})
+        return Transcription(text=self.text, duration_seconds=self.duration, model=self.model)
+
+
+class FailingTranscriber(FakeTranscriber):
+    def transcribe(self, data, filename, media_type, prompt):
+        from app.services.transcription_service import TranscriptionError
+
+        raise TranscriptionError("El servicio de transcripción respondió con error 503")
+
+
+def post_photo(client, data, filename="vin.jpg", content_type="image/jpeg", **form):
+    return client.post("/intake/vin-photo", files={"file": (filename, data, content_type)}, data=form)
+
+
+def post_audio(client, data, filename="nota.ogg", content_type="audio/ogg", **form):
+    return client.post("/intake/audio", files={"file": (filename, data, content_type)}, data=form)
+
+
+class Api:
+    """App con base desechable, Storage en memoria, Claude/NHTSA/transcripción
+    simulados y el usuario que se elija (los permisos se revisan de verdad)."""
+
+    def __init__(self, db, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        from app.api import intake as intake_api
+        from app.api.deps import get_current_user_claims
+        from app.database.session import get_db
+        from app.main import app
+        from app.schemas.intake import NhtsaDecodeOut
+        from app.services import nhtsa_service
+
+        self.db = db
+        self.fleet = seed_fleet(db)
+        self.storage = FakeStorage()
+        self.extractor = FakeExtractor(make_extraction(), trip_readings=[self.trip_extraction()])
+        self.transcriber = FakeTranscriber()
+        self.user_id = self.fleet.driver_user_id
+        self.nhtsa_calls: list[str] = []
+
+        def fake_decode(vin):
+            self.nhtsa_calls.append(vin)
+            return NhtsaDecodeOut(make="HONDA", model="Accord", model_year=2003, error_code="0")
+
+        monkeypatch.setattr(nhtsa_service, "decode_vin", fake_decode)
+        app.dependency_overrides[get_db] = lambda: db
+        app.dependency_overrides[get_current_user_claims] = lambda: {"sub": self.user_id}
+        app.dependency_overrides[intake_api.get_extractor] = lambda: self.extractor
+        app.dependency_overrides[intake_api.get_storage] = lambda: self.storage
+        app.dependency_overrides[intake_api.get_transcriber] = lambda: self.transcriber
+        self.client = TestClient(app)
+
+    def trip_extraction(self, **overrides):
+        """Extracción que nombra las zonas reales del viaje sembrado."""
+        values = {
+            "origin": place("el Coyol", "El Coyol, Alajuela", self.fleet.origin.name),
+            "destination": place("la Uruca", "La Uruca, San José", self.fleet.destination.name),
+        }
+        values.update(overrides)
+        return make_trip_extraction(**values)
+
+    def as_user(self, user_id):
+        self.user_id = user_id
+        return self
+
+    def photo(self, data=None, trip=True):
+        form = {"trip_id": str(self.fleet.trip.id)} if trip else {}
+        return post_photo(self.client, data if data is not None else make_jpeg(), **form)
+
+    def audio(self, data=None, trip=True):
+        form = {"trip_id": str(self.fleet.trip.id)} if trip else {}
+        return post_audio(self.client, data if data is not None else make_ogg(), **form)

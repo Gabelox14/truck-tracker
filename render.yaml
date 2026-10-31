@@ -23,5 +23,11 @@ services:
         value: claude-sonnet-5-5
       - key: ANTHROPIC_EFFORT
         value: low
+      - key: TRANSCRIPTION_API_KEY
+        sync: false
+      - key: TRANSCRIPTION_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: TRANSCRIPTION_MODEL
+        value: whisper-large-v3
       - key: PYTHON_VERSION
         value: 3.12.10

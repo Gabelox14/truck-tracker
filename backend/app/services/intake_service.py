@@ -8,7 +8,7 @@ from app.models.trip import Trip
 from app.models.trip_car import TripCar
 from app.repositories import intake_file_repository, trip_car_repository
 from app.schemas.intake import AiUsageOut, NhtsaDecodeOut, VinPhotoExtraction, VinPhotoIntakeOut, VinPhotoResult
-from app.services import image_service, nhtsa_service, vin_service
+from app.services import audio_intake_service, image_service, nhtsa_service, vin_service
 from app.services.claude_service import ClaudeExtractionError, ClaudeExtractor, ClaudeUsage
 from app.services.storage_service import SupabaseStorage, object_path
 
@@ -151,12 +151,28 @@ def car_fields_from_vin_result(result: VinPhotoResult) -> dict:
     }
 
 
+def _mention_mismatch(fields: dict, mentions: list) -> str | None:
+    """Si la nota de voz del viaje nombra marcas y la de este carro no es ninguna."""
+    said = [mention.make for mention in mentions if mention.make]
+    makes = [make for make in (fields["brand"], fields["make_from_photo"]) if make]
+    if not said or not makes:
+        return None
+    if any(vin_service.makes_match(make, mention) for make in makes for mention in said):
+        return None
+    return f"La marca no coincide con lo dicho en la nota de voz ({', '.join(said)})"
+
+
 def _add_car_from_photo(db: Session, record: IntakeFile, trip: Trip, user_id: str) -> TripCar:
     result = VinPhotoResult.model_validate(record.extraction)
     record.trip_id = trip.id
+    fields = car_fields_from_vin_result(result)
+    mismatch = _mention_mismatch(fields, audio_intake_service.trip_vehicle_mentions(db, str(trip.id)))
+    if mismatch:
+        fields["review_status"] = "needs_review"
+        fields["review_notes"] = "\n".join(filter(None, [fields["review_notes"], mismatch]))
     return trip_car_repository.add(
         db,
-        TripCar(trip_id=trip.id, photo_file_id=record.id, created_by=user_id, **car_fields_from_vin_result(result)),
+        TripCar(trip_id=trip.id, photo_file_id=record.id, created_by=user_id, **fields),
     )
 
 

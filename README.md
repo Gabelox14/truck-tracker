@@ -53,7 +53,11 @@ Van en `backend/.env` y en Render; nunca en el frontend ni en variables `VITE_`.
 | `ANTHROPIC_API_KEY` | Para la captura | Llave de la API de Claude; sin ella `/intake` responde 503 |
 | `ANTHROPIC_MODEL` | No (`claude-sonnet-5-5`) | Cambiar a `claude-haiku-5-5` para comparar costo |
 | `ANTHROPIC_EFFORT` | No (`low`) | `low`, `medium`, `high`, `xhigh` o `max` |
+| `TRANSCRIPTION_API_KEY` | Para notas de voz | Llave de la API de transcripción; sin ella `/intake/audio` responde 503 |
+| `TRANSCRIPTION_BASE_URL` | No (`https://api.groq.com/openai/v1`) | Cualquier API compatible con OpenAI; para OpenAI: `https://api.openai.com/v1` |
+| `TRANSCRIPTION_MODEL` | No (`whisper-large-v3`) | En OpenAI: `gpt-4o-transcribe` o `gpt-4o-mini-transcribe` |
 | `INTAKE_MAX_IMAGE_MB` | No (`10`) | Tamaño máximo de foto aceptado |
+| `INTAKE_MAX_AUDIO_MB` | No (`25`) | Tamaño máximo de nota de voz (Groq gratis acepta hasta 25 MB) |
 | `INTAKE_BUCKET` | No (`intake-media`) | Bucket privado de fotos y audios (lo crea la migración) |
 
 Las pruebas que usan base de datos corren solo si `TEST_DATABASE_URL` apunta a un Postgres

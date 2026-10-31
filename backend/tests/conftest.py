@@ -64,3 +64,13 @@ def db(migrated_engine):
         session.close()
         transaction.rollback()
         connection.close()
+
+
+@pytest.fixture
+def api(db, monkeypatch):
+    from app.main import app
+    from tests.helpers import Api
+
+    harness = Api(db, monkeypatch)
+    yield harness
+    app.dependency_overrides.clear()

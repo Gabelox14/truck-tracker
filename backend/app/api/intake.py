@@ -10,8 +10,16 @@ from app.database.session import get_db
 from app.models.intake_file import IntakeFile
 from app.models.trip import Trip
 from app.repositories import intake_file_repository
-from app.schemas.intake import FileUrlOut, VinPhotoIntakeOut
-from app.services import claude_service, image_service, intake_service, storage_service
+from app.schemas.intake import AudioIntakeOut, FileUrlOut, VinPhotoIntakeOut
+from app.services import (
+    audio_intake_service,
+    audio_service,
+    claude_service,
+    image_service,
+    intake_service,
+    storage_service,
+    transcription_service,
+)
 
 router = APIRouter(prefix="/intake", tags=["intake"])
 
@@ -25,6 +33,13 @@ def get_extractor() -> claude_service.ClaudeExtractor:
 
 def get_storage() -> storage_service.SupabaseStorage:
     return storage_service.get_storage()
+
+
+def get_transcriber() -> transcription_service.Transcriber:
+    try:
+        return transcription_service.get_transcriber()
+    except transcription_service.TranscriptionNotConfigured as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
 
 
 def read_upload(file: UploadFile, max_mb: float) -> bytes:
@@ -71,6 +86,41 @@ def upload_vin_photo(
     except image_service.UnsupportedImageError as exc:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=str(exc))
     except claude_service.ClaudeExtractionError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+    except storage_service.StorageError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Este archivo ya se está procesando")
+
+
+@router.post("/audio", response_model=AudioIntakeOut)
+def upload_audio(
+    file: UploadFile = File(..., description="Nota de voz (OGG de WhatsApp, MP3, M4A, WAV, WebM o FLAC)"),
+    trip_id: UUID | None = Form(None, description="Viaje al que se liga; sin viaje queda como borrador"),
+    user_id: str = Depends(require_staff_or_driver),
+    db: Session = Depends(get_db),
+    transcriber: transcription_service.Transcriber = Depends(get_transcriber),
+    extractor: claude_service.ClaudeExtractor = Depends(get_extractor),
+    storage: storage_service.SupabaseStorage = Depends(get_storage),
+):
+    trip = ensure_trip_access(db, user_id, trip_id) if trip_id else None
+    data = read_upload(file, settings.intake_max_audio_mb)
+    try:
+        return audio_intake_service.ingest_audio(
+            db,
+            data=data,
+            user_id=user_id,
+            trip=trip,
+            uploaded_by_staff=is_staff_user(db, user_id),
+            transcriber=transcriber,
+            extractor=extractor,
+            storage=storage,
+        )
+    except audio_service.UnsupportedAudioError as exc:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=str(exc))
+    except (transcription_service.TranscriptionError, claude_service.ClaudeExtractionError) as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
     except storage_service.StorageError as exc:
         db.rollback()

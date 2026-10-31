@@ -17,9 +17,16 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-5-5"
     anthropic_effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
 
+    # Transcripción de notas de voz: cualquier API compatible con OpenAI
+    # (por defecto Groq whisper-large-v3). Sin llave, /intake/audio responde 503.
+    transcription_api_key: str | None = None
+    transcription_base_url: str = "https://api.groq.com/openai/v1"
+    transcription_model: str = "whisper-large-v3"
+
     # Captura de fotos y audios.
     intake_bucket: str = "intake-media"
     intake_max_image_mb: float = 10
+    intake_max_audio_mb: float = 25
     nhtsa_timeout_seconds: float = 4.0
 
     @property

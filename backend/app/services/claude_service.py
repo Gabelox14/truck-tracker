@@ -1,13 +1,14 @@
 import base64
 import logging
 from dataclasses import dataclass
+from datetime import date
 from typing import TypeVar
 
 import anthropic
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
-from app.schemas.intake import VinPhotoExtraction
+from app.schemas.intake import TripAudioExtraction, VinPhotoExtraction
 from app.services.image_service import PreparedImage
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,13 @@ Transcribe el VIN (o el número de chasis) y anota lo que se ve del vehículo:
 - Los números de chasis japoneses (por ejemplo "GRJ150-0012345") también van en vin_text, tal cual.
 - Marca, modelo y color salen de lo que se ve: logo, calcomanía, documento o carrocería. Si no se distinguen, null.
 - vin_bbox es el rectángulo que encierra el VIN, en píxeles de esta imagen."""
+
+TRIP_SYSTEM_PROMPT = """Extraes los datos de un viaje de grúa de la transcripción de una nota de voz de un chofer en Costa Rica.
+
+- No inventes nada: lo que no se dice queda en null. La transcripción puede tener errores; interpreta lo que el chofer quiso decir.
+- Montos en jerga costarricense: un "rojo" es un billete de mil colones ("50 rojos" = 50000 CRC), una "teja" son 100 colones y un "melón" es un millón de colones. Si dice dólares, la moneda es USD. Si da un número sin decir ni dar a entender la moneda, cost_amount lleva el número y cost_currency es null.
+- Lugares: spoken es como lo dijo; normalized es el nombre correcto del lugar en Costa Rica; zone es el nombre exacto de una de las zonas de la empresa (lista abajo) solo si el lugar es esa zona.
+- trip_date: usa la fecha de hoy que se indica para resolver "hoy", "ayer" o un día de la semana."""
 
 _PHOTO_PROMPT = "Lee el VIN de esta foto."
 _CROP_PROMPT = (
@@ -70,6 +78,17 @@ class ClaudeExtractor:
             {"type": "text", "text": _CROP_PROMPT if is_crop else _PHOTO_PROMPT},
         ]
         return self._parse("vin_photo", VIN_SYSTEM_PROMPT, content, VinPhotoExtraction)
+
+    def extract_trip(
+        self, transcript: str, zone_names: list[str], today: date
+    ) -> tuple[TripAudioExtraction, ClaudeUsage]:
+        zones = ", ".join(zone_names) if zone_names else "(ninguna registrada)"
+        text = (
+            f"Zonas de la empresa: {zones}\n"
+            f"Fecha de hoy: {today.isoformat()}\n\n"
+            f"Transcripción:\n{transcript}"
+        )
+        return self._parse("trip_audio", TRIP_SYSTEM_PROMPT, [{"type": "text", "text": text}], TripAudioExtraction)
 
     def _parse(self, kind: str, system: str, content: list, output_format: type[OutputT]) -> tuple[OutputT, ClaudeUsage]:
         request = {

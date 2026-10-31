@@ -2,15 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import intake as intake_api
-from app.api.deps import get_current_user_claims, require_staff_or_driver
-from app.database.session import get_db
+from app.api.deps import require_staff_or_driver
 from app.main import app
 from app.models import IntakeFile, TripCar
-from app.schemas.intake import NhtsaDecodeOut
-from app.services import nhtsa_service
-from tests.helpers import FailingExtractor, FakeExtractor, FakeStorage, make_extraction, make_jpeg, seed_fleet
-
-HONDA = NhtsaDecodeOut(make="HONDA", model="Accord", model_year=2003, error_code="0")
+from tests.helpers import FailingExtractor, FakeExtractor, FakeStorage, make_extraction, make_jpeg, post_photo
 
 
 @pytest.fixture(autouse=True)
@@ -30,66 +25,28 @@ def bare_client():
     return TestClient(app)
 
 
-def _photo(client, data, filename="vin.jpg", content_type="image/jpeg", **form):
-    return client.post("/intake/vin-photo", files={"file": (filename, data, content_type)}, data=form)
-
-
 def test_requires_authentication():
-    assert _photo(TestClient(app), make_jpeg()).status_code in (401, 403)
+    assert post_photo(TestClient(app), make_jpeg()).status_code in (401, 403)
 
 
 def test_without_api_key_answers_503():
     app.dependency_overrides[require_staff_or_driver] = lambda: "00000000-0000-0000-0000-000000000001"
-    response = _photo(TestClient(app), make_jpeg())
+    response = post_photo(TestClient(app), make_jpeg())
     assert response.status_code == 503
     assert "ANTHROPIC_API_KEY" in response.json()["detail"]
 
 
 def test_rejects_non_image(bare_client):
-    assert _photo(bare_client, b"%PDF-1.4", "x.pdf", "application/pdf").status_code == 415
+    assert post_photo(bare_client, b"%PDF-1.4", "x.pdf", "application/pdf").status_code == 415
 
 
 def test_rejects_empty_and_oversized_files(bare_client, monkeypatch):
-    assert _photo(bare_client, b"").status_code == 400
+    assert post_photo(bare_client, b"").status_code == 400
     monkeypatch.setattr(intake_api.settings, "intake_max_image_mb", 0.01)
-    assert _photo(bare_client, make_jpeg() + b"0" * 20000).status_code == 413
+    assert post_photo(bare_client, make_jpeg() + b"0" * 20000).status_code == 413
 
 
 # --- Flujo completo contra una base desechable (TEST_DATABASE_URL) -----------
-
-
-class Api:
-    def __init__(self, db, monkeypatch):
-        self.db = db
-        self.fleet = seed_fleet(db)
-        self.storage = FakeStorage()
-        self.extractor = FakeExtractor(make_extraction())
-        self.user_id = self.fleet.driver_user_id
-        self.nhtsa_calls: list[str] = []
-
-        def fake_decode(vin):
-            self.nhtsa_calls.append(vin)
-            return HONDA
-
-        monkeypatch.setattr(nhtsa_service, "decode_vin", fake_decode)
-        app.dependency_overrides[get_db] = lambda: db
-        app.dependency_overrides[get_current_user_claims] = lambda: {"sub": self.user_id}
-        app.dependency_overrides[intake_api.get_extractor] = lambda: self.extractor
-        app.dependency_overrides[intake_api.get_storage] = lambda: self.storage
-        self.client = TestClient(app)
-
-    def as_user(self, user_id):
-        self.user_id = user_id
-        return self
-
-    def photo(self, data=None, trip=True):
-        form = {"trip_id": str(self.fleet.trip.id)} if trip else {}
-        return _photo(self.client, data if data is not None else make_jpeg(), **form)
-
-
-@pytest.fixture
-def api(db, monkeypatch):
-    return Api(db, monkeypatch)
 
 
 def test_photo_on_own_trip_creates_the_car(api):

@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Literal
 from uuid import UUID
 
@@ -92,3 +93,70 @@ class VinPhotoIntakeOut(VinPhotoResult):
 class FileUrlOut(BaseModel):
     url: str
     expires_in: int
+
+
+Currency = Literal["CRC", "USD"]
+
+
+class PlaceExtraction(BaseModel):
+    spoken: str = Field(description="El lugar tal como lo dijo el chofer.")
+    normalized: str = Field(
+        description="Nombre del lugar en Costa Rica bien escrito, con su provincia si se sabe (p. ej. 'Puerto Caldera, Puntarenas')."
+    )
+    zone: str | None = Field(
+        description="Nombre exacto de una de las zonas de la empresa si el lugar es esa zona; null si no es ninguna."
+    )
+
+
+class VehicleMention(BaseModel):
+    make: str | None = Field(description="Marca dicha, null si no se dijo.")
+    model: str | None = Field(description="Modelo dicho, null si no se dijo.")
+    color: str | None = Field(description="Color dicho, null si no se dijo.")
+    plate: str | None = Field(description="Placa dicha, null si no se dijo.")
+
+
+class TripAudioExtraction(BaseModel):
+    """Lo que Claude extrae de la transcripción; la respuesta se valida contra este esquema."""
+
+    origin: PlaceExtraction | None = Field(description="De dónde salió el viaje. null si no se dijo.")
+    destination: PlaceExtraction | None = Field(description="A dónde llegó el viaje. null si no se dijo.")
+    cost_amount: float | None = Field(
+        ge=0, description="Costo del viaje en unidades de la moneda, ya convertida la jerga. null si no se dijo."
+    )
+    cost_currency: Currency | None = Field(
+        description="CRC o USD según lo dicho. null si se dio un número sin decir la moneda."
+    )
+    cost_spoken: str | None = Field(description="La frase exacta del costo (p. ej. '50 rojos'). null si no se dijo.")
+    vehicle_mentions: list[VehicleMention] = Field(description="Vehículos mencionados; lista vacía si ninguno.")
+    trip_date: date | None = Field(description="Fecha del viaje si se menciona o se deduce (ayer, el lunes); null si no.")
+    notes: str | None = Field(description="Otra información útil, breve y en español. null si no hay.")
+    confidence: float = Field(ge=0, le=1, description="Seguridad de 0 a 1 en la extracción completa.")
+
+
+class TranscriptionOut(BaseModel):
+    model: str
+    duration_seconds: float | None
+
+
+class TripAudioResult(BaseModel):
+    transcript: str
+    extraction: TripAudioExtraction | None
+    origin_zone_id: UUID | None
+    destination_zone_id: UUID | None
+    cost_amount: float | None
+    cost_currency: Currency | None
+    currency_assumed: bool = False
+    review_status: ReviewStatus
+    review_reasons: list[str]
+    transcription: TranscriptionOut
+    usage: AiUsageOut | None
+
+
+class AudioIntakeOut(TripAudioResult):
+    """Resultado guardado; trip_review_* refleja cómo quedó el viaje si se ligó a uno."""
+
+    intake_file_id: UUID
+    trip_id: UUID | None = None
+    trip_review_status: ReviewStatus | None = None
+    trip_review_reasons: list[str] = []
+    duplicate: bool = False
