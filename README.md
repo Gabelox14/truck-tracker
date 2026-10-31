@@ -54,3 +54,12 @@ Van en `backend/.env` y en Render; nunca en el frontend ni en variables `VITE_`.
 | `ANTHROPIC_MODEL` | No (`claude-sonnet-5-5`) | Cambiar a `claude-haiku-5-5` para comparar costo |
 | `ANTHROPIC_EFFORT` | No (`low`) | `low`, `medium`, `high`, `xhigh` o `max` |
 | `INTAKE_MAX_IMAGE_MB` | No (`10`) | Tamaño máximo de foto aceptado |
+| `INTAKE_BUCKET` | No (`intake-media`) | Bucket privado de fotos y audios (lo crea la migración) |
+
+Las pruebas que usan base de datos corren solo si `TEST_DATABASE_URL` apunta a un Postgres
+local desechable (nunca a Supabase; el test se niega a correr si detecta Supabase):
+
+```bash
+$env:TEST_DATABASE_URL = "postgresql://postgres@127.0.0.1:55432/tt_test"
+python -m pytest
+```

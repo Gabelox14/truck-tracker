@@ -5,6 +5,9 @@ from app.models.profile import Profile
 from app.models.trip import Trip
 from app.models.trip_car import TripCar
 from app.repositories import trip_car_repository, trip_repository, truck_repository, zone_repository
+from app.schemas.trip import TripReviewUpdate
+from app.schemas.trip_car import TripCarCreate, TripCarUpdate
+from app.services import vin_service
 
 
 def create_trip(
@@ -17,8 +20,22 @@ def complete_trip(db: Session, trip_id: str) -> Trip | None:
     return trip_repository.complete(db, trip_id)
 
 
-def update_trip_amount(db: Session, trip_id: str, amount: float) -> Trip | None:
-    return trip_repository.update_amount(db, trip_id, amount)
+def update_trip_amount(db: Session, trip_id: str, amount: float, currency: str | None = None) -> Trip | None:
+    return trip_repository.update_amount(db, trip_id, amount, currency)
+
+
+def review_trip(db: Session, trip: Trip, payload: TripReviewUpdate) -> Trip:
+    """Aplica las correcciones enviadas y deja el viaje confirmado."""
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(trip, key, value)
+    if trip.origin_zone_id == trip.destination_zone_id:
+        db.rollback()
+        raise ValueError("El origen y el destino tienen que ser distintos")
+    trip.review_status = "confirmed"
+    db.commit()
+    db.refresh(trip)
+    return trip
 
 
 def update_trip_type(db: Session, trip_id: str, trip_type: str) -> Trip | None:
@@ -29,8 +46,42 @@ def list_trip_cars(db: Session, trip_id: str) -> list[TripCar]:
     return trip_car_repository.list_for_trip(db, trip_id)
 
 
-def add_trip_car(db: Session, trip_id: str, brand: str, vin_photo_url: str | None) -> TripCar:
-    return trip_car_repository.create(db, trip_id, brand, vin_photo_url)
+def vin_fields(raw: str | None) -> dict:
+    if raw is None or not raw.strip():
+        return {"vin": None, "vin_raw": None, "vin_valid": None, "check_digit_ok": None}
+    check = vin_service.analyze(raw)
+    return {
+        "vin": check.normalized,
+        "vin_raw": raw.strip(),
+        "vin_valid": check.is_valid,
+        "check_digit_ok": check.check_digit_ok,
+    }
+
+
+def add_trip_car(db: Session, trip_id: str, payload: TripCarCreate, user_id: str) -> TripCar:
+    fields = {
+        "brand": payload.brand.strip(),
+        "model": payload.model,
+        "model_year": payload.model_year,
+        "color": payload.color,
+        "created_by": user_id,
+        **vin_fields(payload.vin),
+    }
+    return trip_car_repository.create(db, trip_id, fields)
+
+
+def get_trip_car(db: Session, trip_id: str, car_id: str) -> TripCar | None:
+    return trip_car_repository.get(db, trip_id, car_id)
+
+
+def update_trip_car(db: Session, car: TripCar, payload: TripCarUpdate) -> TripCar:
+    changes = payload.model_dump(exclude_unset=True)
+    fields = {key: changes[key] for key in ("brand", "model", "model_year", "color") if key in changes}
+    if "vin" in changes:
+        fields.update(vin_fields(changes["vin"]))
+    if changes.get("review_status"):
+        fields["review_status"] = changes["review_status"]
+    return trip_car_repository.update(db, car, fields)
 
 
 def remove_trip_car(db: Session, trip_id: str, car_id: str) -> bool:
@@ -84,9 +135,9 @@ def build_fe_rows(
         cars = trip_car_repository.list_for_trip(db, str(trip.id))
         if cars:
             for car in cars:
-                rows.append({**base, "brand": car.brand, "vin_photo_url": car.vin_photo_url})
+                rows.append({**base, "brand": car.brand, "has_photo": car.photo_file_id is not None})
         else:
-            rows.append({**base, "brand": None, "vin_photo_url": None})
+            rows.append({**base, "brand": None, "has_photo": False})
     return rows
 
 

@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -77,3 +78,17 @@ class VinPhotoResult(BaseModel):
     review_status: ReviewStatus
     review_reasons: list[str]
     usage: AiUsageOut
+
+
+class VinPhotoIntakeOut(VinPhotoResult):
+    """Resultado guardado: el archivo, el viaje y el carro creado (si hay viaje)."""
+
+    intake_file_id: UUID
+    trip_id: UUID | None = None
+    trip_car_id: UUID | None = None
+    duplicate: bool = False
+
+
+class FileUrlOut(BaseModel):
+    url: str
+    expires_in: int

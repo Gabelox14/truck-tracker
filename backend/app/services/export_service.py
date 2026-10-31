@@ -39,17 +39,11 @@ def build_fe_workbook(rows: list[dict]) -> BytesIO:
                 TRIP_TYPE_LABEL.get(row.get("trip_type"), ""),
                 float(row["amount"]) if row.get("amount") is not None else "",
                 row.get("brand") or "",
-                "Ver foto" if row.get("vin_photo_url") else "",
+                "Sí" if row.get("has_photo") else "",
             ]
         )
         if row.get("amount") is not None:
             ws.cell(row=ws.max_row, column=MONTO_COLUMN).number_format = MONTO_NUMBER_FORMAT
-
-        vin_photo_url = row.get("vin_photo_url")
-        if vin_photo_url:
-            cell = ws.cell(row=ws.max_row, column=len(FE_HEADERS))
-            cell.hyperlink = vin_photo_url
-            cell.style = "Hyperlink"
 
     for i, width in enumerate(FE_COLUMN_WIDTHS, start=1):
         ws.column_dimensions[get_column_letter(i)].width = width

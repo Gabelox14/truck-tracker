@@ -18,8 +18,8 @@ from app.models.driver import Driver
 from app.models.trip import Trip
 from app.schemas.export import FeRowOut
 from app.schemas.stats import StatsSummaryOut
-from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut, TripTypeUpdate
-from app.schemas.trip_car import TripCarCreate, TripCarOut
+from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut, TripReviewUpdate, TripTypeUpdate
+from app.schemas.trip_car import TripCarCreate, TripCarOut, TripCarUpdate
 from app.services import export_service, trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -135,7 +135,7 @@ def set_trip_amount(
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    return trip_service.update_trip_amount(db, str(trip.id), payload.amount)
+    return trip_service.update_trip_amount(db, str(trip.id), payload.amount, payload.currency)
 
 
 @router.patch("/{trip_id}/type", response_model=TripOut)
@@ -146,6 +146,22 @@ def set_trip_type(
     db: Session = Depends(get_db),
 ):
     return trip_service.update_trip_type(db, str(trip.id), payload.trip_type)
+
+
+@router.patch("/{trip_id}/review", response_model=TripOut)
+def confirm_trip_review(
+    payload: TripReviewUpdate,
+    trip: Trip = Depends(require_trip_access),
+    _staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    try:
+        return trip_service.review_trip(db, trip, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La zona indicada no existe")
 
 
 @router.get("/{trip_id}/cars", response_model=list[TripCarOut])
@@ -160,10 +176,24 @@ def list_trip_cars(
 def add_trip_car(
     payload: TripCarCreate,
     trip: Trip = Depends(require_trip_access),
+    staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    return trip_service.add_trip_car(db, str(trip.id), payload, staff_id)
+
+
+@router.patch("/{trip_id}/cars/{car_id}", response_model=TripCarOut)
+def update_trip_car(
+    car_id: UUID,
+    payload: TripCarUpdate,
+    trip: Trip = Depends(require_trip_access),
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    return trip_service.add_trip_car(db, str(trip.id), payload.brand, payload.vin_photo_url)
+    car = trip_service.get_trip_car(db, str(trip.id), str(car_id))
+    if car is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+    return trip_service.update_trip_car(db, car, payload)
 
 
 @router.delete("/{trip_id}/cars/{car_id}", status_code=status.HTTP_204_NO_CONTENT)

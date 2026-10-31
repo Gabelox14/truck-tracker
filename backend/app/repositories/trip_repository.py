@@ -76,11 +76,13 @@ def complete(db: Session, trip_id: str) -> Trip | None:
     return trip
 
 
-def update_amount(db: Session, trip_id: str, amount: float) -> Trip | None:
+def update_amount(db: Session, trip_id: str, amount: float, currency: str | None = None) -> Trip | None:
     trip = db.get(Trip, trip_id)
     if trip is None:
         return None
     trip.amount = amount
+    if currency is not None:
+        trip.currency = currency
     db.commit()
     db.refresh(trip)
     return trip
