@@ -12,9 +12,12 @@ from app.schemas.trip_car import TripCarCreate, TripCarUpdate
 from app.services import rate_service, vin_service
 from app.services.text_utils import short_name, strip_accents
 
+# Lo que se muestra en lugar del camión en los viajes de un tercero.
+THIRD_PARTY_LABEL = "Tercero"
+
 
 def create_trip(
-    db: Session, driver_id: str, truck_id: str, origin_zone_id: str, destination_zone_id: str
+    db: Session, driver_id: str, truck_id: str | None, origin_zone_id: str, destination_zone_id: str
 ) -> Trip:
     return trip_repository.create(db, driver_id, truck_id, origin_zone_id, destination_zone_id)
 
@@ -194,7 +197,7 @@ def build_fe_rows(
             "trip_id": trip.id,
             "trip_date": local_date(trip.started_at),
             "truck_code": truck.code if truck else None,
-            "truck_plate": truck.plate if truck else None,
+            "truck_plate": truck.plate if truck else (THIRD_PARTY_LABEL if trip.truck_id is None else None),
             "driver_name": driver.full_name if driver else None,
             "origin": zone_origin.name if zone_origin else None,
             "destination": zone_destination.name if zone_destination else None,
@@ -248,7 +251,7 @@ def build_directos_rows(db: Session, truck_id=None, zone_id=None, date_from=None
                 f"{origin.name if origin else '?'} - {destination.name if destination else '?'}"
             ).upper(),
             "requested_by": short_name(trip.requested_by),
-            "unit": (truck.code or truck.plate) if truck else None,
+            "unit": (truck.code or truck.plate) if truck else (THIRD_PARTY_LABEL.upper() if trip.truck_id is None else None),
         }
         cars = trip_car_repository.list_for_trip(db, str(trip.id))
         if not cars:
@@ -317,6 +320,8 @@ def build_stats(db: Session, date_from=None, date_to=None, currency: str = "CRC"
         day_key = local_date(trip.started_at).isoformat()
         by_day[day_key] = by_day.get(day_key, 0.0) + amount
 
+        if trip.truck_id is None:
+            continue  # viaje de un tercero: suma al total, no a un camión
         truck_key = str(trip.truck_id)
         if truck_key not in by_truck:
             truck = trucks.get(trip.truck_id)

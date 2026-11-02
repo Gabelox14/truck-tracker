@@ -14,6 +14,8 @@ export default function DriverPage() {
   const { showToast } = useToast();
   const { profile } = useAuth();
   const assignedTruck = Boolean(profile?.truck_id);
+  // El tercero trabaja con su propio vehículo: no elige camión.
+  const ownVehicle = profile?.uses_company_truck === false;
   const [truckId, setTruckId] = useState("");
   const [originZoneId, setOriginZoneId] = useState("");
   const [destinationZoneId, setDestinationZoneId] = useState("");
@@ -72,7 +74,7 @@ export default function DriverPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900">
-                  {truckPlate(activeTrip.truck_id)}
+                  {activeTrip.truck_id ? truckPlate(activeTrip.truck_id) : "Vehículo propio"}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
                   {zoneName(activeTrip.origin_zone_id)} → {zoneName(activeTrip.destination_zone_id)}
@@ -111,14 +113,14 @@ export default function DriverPage() {
                 setError("");
                 startTrip.mutate({
                   // Con camión asignado el backend usa ese.
-                  truck_id: assignedTruck ? profile.truck_id : truckId,
+                  truck_id: ownVehicle ? null : assignedTruck ? profile.truck_id : truckId,
                   origin_zone_id: originZoneId,
                   destination_zone_id: destinationZoneId,
                 });
               }}
               className="space-y-3"
             >
-              {assignedTruck ? (
+              {ownVehicle ? null : assignedTruck ? (
                 <p className="text-sm text-slate-500">
                   Camión: <span className="font-medium text-slate-900">{profile.truck_plate}</span>
                 </p>

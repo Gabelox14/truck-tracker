@@ -78,8 +78,7 @@ def create_account(
     if not full_name:
         raise DriverAccountError("Falta el nombre del chofer")
     # Antes de crear la cuenta en Supabase, para no dejarla huérfana.
-    driver_service.check_driver_type(driver_type)
-    driver_service.check_truck_free(db, truck_id)
+    truck_id = driver_service.check_assignment(db, truck_id, driver_type)
     cedula = cedula.strip() if cedula and cedula.strip() else None
     if cedula and db.query(Profile.id).filter(Profile.cedula == cedula).first() is not None:
         raise DriverAccountError("Esa cédula ya está registrada")

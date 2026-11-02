@@ -12,6 +12,8 @@ const DRIVER_TYPES = [
   { value: "tercero", label: "Tercero" },
 ];
 const typeLabel = (value) => DRIVER_TYPES.find((t) => t.value === value)?.label;
+// El tercero colabora con su propio vehículo: no lleva camión de la flota.
+const usesCompanyTruck = (driverType) => driverType !== "tercero";
 
 // El código interno (M01) solo le llega al admin; los demás ven la placa.
 const truckLabel = (truck) => (truck ? (truck.code ? `${truck.code} · ${truck.plate}` : truck.plate) : null);
@@ -115,7 +117,7 @@ function NewDriverCard({ trucks, drivers, onCreated }) {
       (
         await apiClient.post("/drivers/accounts", {
           full_name: fullName,
-          truck_id: truckId,
+          truck_id: usesCompanyTruck(driverType) ? truckId : null,
           driver_type: driverType,
           cedula: cedula || null,
         })
@@ -160,15 +162,19 @@ function NewDriverCard({ trucks, drivers, onCreated }) {
           aria-label="Cédula (opcional)"
           autoComplete="off"
         />
-        <TruckSelect trucks={available} value={truckId} onChange={setTruckId} />
         <TypeSelect value={driverType} onChange={setDriverType} />
+        {usesCompanyTruck(driverType) ? (
+          <TruckSelect trucks={available} value={truckId} onChange={setTruckId} />
+        ) : (
+          <p className="self-center text-sm text-slate-500">Tercero: trabaja con su propio vehículo.</p>
+        )}
         <div className="sm:col-span-2">
-          <Button type="submit" disabled={create.isPending || available.length === 0}>
+          <Button type="submit" disabled={create.isPending || (usesCompanyTruck(driverType) && available.length === 0)}>
             {create.isPending ? "Creando…" : "Crear chofer"}
           </Button>
         </div>
       </form>
-      {available.length === 0 && (
+      {available.length === 0 && usesCompanyTruck(driverType) && (
         <p className="mt-2 text-xs text-slate-400">
           Todos los camiones tienen chofer. Crea un camión o desactiva al chofer que tiene el que necesitas.
         </p>
@@ -190,7 +196,12 @@ function AssignmentForm({ driver, trucks, drivers, onDone }) {
 
   const save = useMutation({
     mutationFn: async () =>
-      (await apiClient.patch(`/drivers/${driver.id}`, { truck_id: truckId, driver_type: driverType })).data,
+      (
+        await apiClient.patch(`/drivers/${driver.id}`, {
+          driver_type: driverType,
+          ...(usesCompanyTruck(driverType) && truckId ? { truck_id: truckId } : {}),
+        })
+      ).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["drivers"] });
       showToast("Chofer actualizado");
@@ -208,8 +219,12 @@ function AssignmentForm({ driver, trucks, drivers, onDone }) {
       className="mt-2 w-full space-y-2"
     >
       <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
-        <TruckSelect trucks={freeTrucks(trucks, drivers, driver)} value={truckId} onChange={setTruckId} />
         <TypeSelect value={driverType} onChange={setDriverType} />
+        {usesCompanyTruck(driverType) ? (
+          <TruckSelect trucks={freeTrucks(trucks, drivers, driver)} value={truckId} onChange={setTruckId} />
+        ) : (
+          <p className="self-center text-sm text-slate-500">Vehículo propio</p>
+        )}
         <Button type="submit" disabled={save.isPending}>
           Guardar
         </Button>
@@ -266,7 +281,7 @@ function LinkProfileForm({ trucks, drivers }) {
           link.mutate({
             profile_id: profileId,
             full_name: selected?.full_name ?? "",
-            truck_id: truckId,
+            truck_id: usesCompanyTruck(driverType) ? truckId : null,
             driver_type: driverType,
           });
         }}
@@ -282,8 +297,12 @@ function LinkProfileForm({ trucks, drivers }) {
             </option>
           ))}
         </Select>
-        <TruckSelect trucks={freeTrucks(trucks, drivers)} value={truckId} onChange={setTruckId} />
         <TypeSelect value={driverType} onChange={setDriverType} />
+        {usesCompanyTruck(driverType) ? (
+          <TruckSelect trucks={freeTrucks(trucks, drivers)} value={truckId} onChange={setTruckId} />
+        ) : (
+          <p className="self-center text-sm text-slate-500">Vehículo propio</p>
+        )}
         <Button type="submit" variant="ghost" disabled={link.isPending}>
           Vincular
         </Button>
@@ -357,7 +376,9 @@ export default function DriversSection() {
                       {!driver.active && <Badge>Inactivo</Badge>}
                     </p>
                     <p className="truncate text-xs text-slate-400">
-                      {driver.active
+                      {driver.driver_type === "tercero"
+                        ? "Vehículo propio"
+                        : driver.active
                         ? (truckLabel(truck) ?? "Sin camión asignado")
                         : truck
                           ? `Último camión: ${truckLabel(truck)}`

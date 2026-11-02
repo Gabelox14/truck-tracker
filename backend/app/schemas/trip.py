@@ -53,7 +53,8 @@ class TripOut(BaseModel):
 
     id: UUID
     driver_id: UUID
-    truck_id: UUID
+    # Null: viaje de un tercero con su propio vehículo.
+    truck_id: UUID | None
     origin_zone_id: UUID
     destination_zone_id: UUID
     status: str

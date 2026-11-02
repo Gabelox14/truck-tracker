@@ -21,7 +21,7 @@ from app.schemas.export import FeRowOut
 from app.schemas.stats import StatsSummaryOut
 from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut, TripReviewUpdate, TripTypeUpdate
 from app.schemas.trip_car import TripCarCreate, TripCarOut, TripCarUpdate
-from app.services import export_service, trip_service
+from app.services import driver_service, export_service, trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -122,17 +122,20 @@ def start_trip(
     driver: Driver = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
-    truck_id = driver.truck_id or payload.truck_id
-    if truck_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No tienes camión asignado; pídele al admin que te asigne uno",
-        )
+    if driver_service.uses_company_truck(driver.driver_type):
+        truck_id = driver.truck_id or payload.truck_id
+        if truck_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="No tienes camión asignado; pídele al admin que te asigne uno",
+            )
+    else:
+        truck_id = None  # tercero: viaja con su propio vehículo
     try:
         return trip_service.create_trip(
             db,
             str(driver.id),
-            str(truck_id),
+            str(truck_id) if truck_id else None,
             str(payload.origin_zone_id),
             str(payload.destination_zone_id),
         )

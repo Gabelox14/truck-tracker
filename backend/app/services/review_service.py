@@ -3,11 +3,12 @@ from datetime import datetime, time
 from sqlalchemy.orm import Session
 
 from app.core.time import COSTA_RICA_TZ
+from app.models.driver import Driver
 from app.models.intake_file import IntakeFile
 from app.models.trip import Trip
 from app.repositories import intake_file_repository, trip_car_repository, trip_repository
 from app.schemas.intake import DraftTripCreate
-from app.services import audio_intake_service, intake_service
+from app.services import audio_intake_service, driver_service, intake_service
 from app.services.storage_service import SupabaseStorage
 
 
@@ -38,6 +39,12 @@ def attach_file(db: Session, record: IntakeFile, trip: Trip, user_id: str) -> No
 def create_trip_from_drafts(db: Session, payload: DraftTripCreate, user_id: str) -> Trip:
     if payload.origin_zone_id == payload.destination_zone_id:
         raise DraftError("El origen y el destino tienen que ser distintos")
+    driver = db.get(Driver, payload.driver_id)
+    if driver is None:
+        raise DraftError("Ese chofer no existe")
+    truck_id = payload.truck_id if driver_service.uses_company_truck(driver.driver_type) else None
+    if truck_id is None and driver_service.uses_company_truck(driver.driver_type):
+        raise DraftError("Elige el camión del viaje (solo el tercero va sin camión)")
     records = []
     for file_id in payload.file_ids:
         record = intake_file_repository.get(db, str(file_id))
@@ -54,7 +61,7 @@ def create_trip_from_drafts(db: Session, payload: DraftTripCreate, user_id: str)
     )
     trip = Trip(
         driver_id=payload.driver_id,
-        truck_id=payload.truck_id,
+        truck_id=truck_id,
         origin_zone_id=payload.origin_zone_id,
         destination_zone_id=payload.destination_zone_id,
         trip_type=payload.trip_type,

@@ -7,15 +7,15 @@ from pydantic import BaseModel, ConfigDict
 class DriverCreate(BaseModel):
     profile_id: UUID
     full_name: str
-    truck_id: UUID
+    truck_id: UUID | None = None
     driver_type: str
 
 
 class DriverAccountCreate(BaseModel):
-    """El admin da el nombre, el camión y el tipo; el correo y la contraseña los pone el sistema."""
+    """El admin da el nombre, el tipo y el camión (salvo un tercero); el correo y la contraseña los pone el sistema."""
 
     full_name: str
-    truck_id: UUID
+    truck_id: UUID | None = None
     driver_type: str
     cedula: str | None = None
 

@@ -74,7 +74,7 @@ function CreateTripForm({ draft, drafts, drivers, trucks, zones, onDone }) {
         create.mutate({
           file_ids: [draft.id, ...extraIds],
           driver_id: values.driver_id,
-          truck_id: values.truck_id,
+          truck_id: values.truck_id || null,
           origin_zone_id: values.origin_zone_id,
           destination_zone_id: values.destination_zone_id,
           amount: values.amount === "" ? null : Number(values.amount),
@@ -87,7 +87,16 @@ function CreateTripForm({ draft, drafts, drivers, trucks, zones, onDone }) {
       className="mt-3 space-y-2 rounded-lg border border-slate-200 p-3"
     >
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Select value={values.driver_id} onChange={set("driver_id")} aria-label="Chofer" required>
+        <Select
+          value={values.driver_id}
+          onChange={(e) => {
+            // El chofer sale en su camión asignado (el tercero, en su propio vehículo).
+            const driver = drivers.find((d) => d.id === e.target.value);
+            setValues((v) => ({ ...v, driver_id: e.target.value, truck_id: driver?.truck_id ?? "" }));
+          }}
+          aria-label="Chofer"
+          required
+        >
           <option value="" disabled>
             Chofer
           </option>
@@ -97,10 +106,8 @@ function CreateTripForm({ draft, drafts, drivers, trucks, zones, onDone }) {
             </option>
           ))}
         </Select>
-        <Select value={values.truck_id} onChange={set("truck_id")} aria-label="Camión" required>
-          <option value="" disabled>
-            Camión
-          </option>
+        <Select value={values.truck_id} onChange={set("truck_id")} aria-label="Camión">
+          <option value="">Sin camión (tercero)</option>
           {trucks.map((t) => (
             <option key={t.id} value={t.id}>
               {t.plate}
@@ -212,7 +219,7 @@ function AttachForm({ draft, trips, truckPlates, zoneNames, onDone }) {
         </option>
         {trips.map((t) => (
           <option key={t.id} value={t.id}>
-            {new Date(t.started_at).toLocaleDateString()} · {truckPlates[t.truck_id] ?? "?"} · {zoneNames[t.origin_zone_id] ?? "?"} →{" "}
+            {new Date(t.started_at).toLocaleDateString()} · {t.truck_id ? (truckPlates[t.truck_id] ?? "?") : "Tercero"} · {zoneNames[t.origin_zone_id] ?? "?"} →{" "}
             {zoneNames[t.destination_zone_id] ?? "?"}
           </option>
         ))}
@@ -349,7 +356,7 @@ export default function ReviewSection() {
               <li key={trip.id} className="flex flex-wrap items-start justify-between gap-2 py-3">
                 <div className="min-w-0 space-y-0.5">
                   <p className="text-sm font-medium text-slate-900">
-                    {driverNames[trip.driver_id] ?? "Chofer"} · {truckPlates[trip.truck_id] ?? "Camión"}
+                    {driverNames[trip.driver_id] ?? "Chofer"} · {trip.truck_id ? (truckPlates[trip.truck_id] ?? "Camión") : "Tercero"}
                   </p>
                   <p className="text-sm text-slate-500">
                     {zoneNames[trip.origin_zone_id] ?? "?"} → {zoneNames[trip.destination_zone_id] ?? "?"}

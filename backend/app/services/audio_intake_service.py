@@ -227,7 +227,7 @@ def apply_audio_to_trip(db: Session, trip: Trip, result: TripAudioResult, upload
         current = trucks.get(trip.truck_id)
         reasons.append(
             f"El audio dice unidad {extraction.unit_code}, pero el viaje tiene "
-            f"{(current.code or current.plate) if current else '?'}"
+            f"{(current.code or current.plate) if current else 'vehículo propio (tercero)' if trip.truck_id is None else '?'}"
         )
 
     cars = trip_car_repository.list_for_trip(db, str(trip.id))

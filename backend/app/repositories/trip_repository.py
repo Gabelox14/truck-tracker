@@ -62,7 +62,7 @@ def list_for_export(
 
 
 def create(
-    db: Session, driver_id: str, truck_id: str, origin_zone_id: str, destination_zone_id: str
+    db: Session, driver_id: str, truck_id: str | None, origin_zone_id: str, destination_zone_id: str
 ) -> Trip:
     trip = Trip(
         driver_id=driver_id,

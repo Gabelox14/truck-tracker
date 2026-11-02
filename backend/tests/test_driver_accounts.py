@@ -293,6 +293,73 @@ def test_driver_trips_use_the_assigned_truck(api, auth):
     assert trip.json()["truck_id"] == str(truck.id) == created["driver"]["truck_id"]
 
 
+def test_third_party_driver_has_no_company_truck(api, auth):
+    client = api.as_user(api.fleet.admin_id).client
+    # Sin camión, y si se manda uno se ignora: no ocupa camiones de la flota.
+    truck = new_truck(api)
+    tercero = client.post(
+        "/drivers/accounts", json={"full_name": "Johnny", "driver_type": "tercero", "truck_id": str(truck.id)}
+    )
+    assert tercero.status_code == 201, tercero.text
+    assert tercero.json()["driver"]["truck_id"] is None
+    assert create(api, "Juan", truck=truck).status_code == 201  # el camión sigue libre
+    # Los demás tipos sí lo exigen.
+    assert client.post("/drivers/accounts", json={"full_name": "Nelson", "driver_type": "suplente"}).status_code == 422
+
+    user_id = next(uid for uid, u in auth.users.items() if u["email"] == accounts.email_for("johnny"))
+    me = api.as_user(user_id).client.post("/profiles/me").json()
+    assert me["uses_company_truck"] is False and me["truck_id"] is None
+    fleet = api.fleet
+    trip = api.as_user(user_id).client.post(
+        "/trips",
+        json={"truck_id": str(fleet.truck.id), "origin_zone_id": str(fleet.origin.id), "destination_zone_id": str(fleet.destination.id)},
+    )
+    assert trip.status_code == 201, trip.text
+    assert trip.json()["truck_id"] is None
+
+
+def test_changing_type_to_and_from_third_party(api, auth):
+    truck = new_truck(api)
+    driver = create(api, "Charly", truck=truck).json()["driver"]
+    client = api.as_user(api.fleet.admin_id).client
+
+    to_third = client.patch(f"/drivers/{driver['id']}", json={"driver_type": "tercero"})
+    assert to_third.status_code == 200 and to_third.json()["truck_id"] is None  # liberó el camión
+    assert create(api, "Otro", truck=truck).status_code == 201
+
+    # Volver a fijo exige un camión libre.
+    assert client.patch(f"/drivers/{driver['id']}", json={"driver_type": "fijo"}).status_code == 422
+    assert client.patch(f"/drivers/{driver['id']}", json={"driver_type": "fijo", "truck_id": str(truck.id)}).status_code == 409
+    free = new_truck(api)
+    back = client.patch(f"/drivers/{driver['id']}", json={"driver_type": "fijo", "truck_id": str(free.id)})
+    assert back.status_code == 200 and back.json()["truck_id"] == str(free.id)
+
+    # Un tercero se reactiva sin camión.
+    tercero = create(api, "Johnny", driver_type="tercero").json()["driver"]
+    assert client.patch(f"/drivers/{tercero['id']}", json={"active": False}).status_code == 200
+    assert client.patch(f"/drivers/{tercero['id']}", json={"active": True}).status_code == 200
+
+
+def test_third_party_trips_in_reports(api, auth):
+    from app.models import Driver as D
+    from app.services import trip_service
+
+    fleet = api.fleet
+    tercero = D(profile_id=fleet.other_user_id, full_name="Tercero Uno", driver_type="tercero")
+    api.db.delete(fleet.other_driver)
+    api.db.flush()
+    api.db.add(tercero)
+    api.db.flush()
+    api.db.add(Trip(driver_id=tercero.id, truck_id=None, origin_zone_id=fleet.origin.id, destination_zone_id=fleet.destination.id, trip_type="directo", amount=40000, currency="CRC"))
+    api.db.flush()
+
+    rows = trip_service.build_directos_rows(api.db)
+    assert "TERCERO" in {row["unit"] for row in rows}
+    summary = api.as_user(fleet.admin_id).client.get("/trips/stats/summary")
+    assert summary.status_code == 200, summary.text
+    assert all(t["truck_id"] != "None" for t in summary.json().get("by_truck", []))
+
+
 def test_existing_profile_loads_without_signup_metadata(api):
     # Antes /profiles/me exigía cédula en los metadatos aunque el perfil existiera.
     assert api.as_user(api.fleet.driver_user_id).client.post("/profiles/me").status_code == 200

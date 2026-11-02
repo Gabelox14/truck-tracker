@@ -218,7 +218,7 @@ export default function TripPage() {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-medium text-slate-900">
-                {[driver?.full_name, truck?.plate].filter(Boolean).join(" · ") || "Viaje"}
+                {[driver?.full_name, trip.truck_id ? truck?.plate : "Tercero"].filter(Boolean).join(" · ") || "Viaje"}
               </span>
               <Badge tone={trip.status === "completed" ? "emerald" : "amber"}>
                 {trip.status === "completed" ? "Completado" : "En curso"}

@@ -4,17 +4,22 @@ from app.models.driver import Driver
 from app.models.profile import Profile
 from app.models.truck import Truck
 from app.repositories import profile_repository
+from app.services import driver_service
 
 DEFAULT_ROLE = "driver"
 
 
 def attach_is_assigned(db: Session, profile: Profile) -> Profile:
     profile.truck_id = profile.truck_plate = None
+    profile.uses_company_truck = True
     if profile.role in ("admin", "dispatcher"):
         profile.is_assigned = True
         return profile
     driver = db.query(Driver).filter(Driver.profile_id == profile.id, Driver.active.is_(True)).first()
     profile.is_assigned = driver is not None
+    if driver is not None:
+        # Sin revelar el tipo (es solo del admin): el tercero no elige camión.
+        profile.uses_company_truck = driver_service.uses_company_truck(driver.driver_type)
     if driver is not None and driver.truck_id is not None:
         # El chofer ve su camión por placa (el código interno es solo del admin).
         truck = db.get(Truck, driver.truck_id)

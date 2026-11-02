@@ -22,7 +22,8 @@ class Trip(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     driver_id = Column(UUID(as_uuid=True), ForeignKey("drivers.id"), nullable=False, index=True)
-    truck_id = Column(UUID(as_uuid=True), ForeignKey("trucks.id"), nullable=False, index=True)
+    # Null en los viajes de choferes "tercero" (vehículo propio).
+    truck_id = Column(UUID(as_uuid=True), ForeignKey("trucks.id"), nullable=True, index=True)
     origin_zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=False)
     destination_zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=False)
     status = Column(String, nullable=False, server_default="in_progress")

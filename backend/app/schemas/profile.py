@@ -19,6 +19,8 @@ class ProfileOut(BaseModel):
     # Camión asignado, si es chofer activo.
     truck_id: UUID | None = None
     truck_plate: str | None = None
+    # False para un chofer tercero, que trabaja con su propio vehículo.
+    uses_company_truck: bool = True
 
 
 class ProfileRoleUpdate(BaseModel):

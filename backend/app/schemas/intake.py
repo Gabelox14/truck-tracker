@@ -218,7 +218,8 @@ class DraftTripCreate(BaseModel):
 
     file_ids: list[UUID] = Field(min_length=1)
     driver_id: UUID
-    truck_id: UUID
+    # Solo puede faltar si el chofer es tercero (vehículo propio).
+    truck_id: UUID | None = None
     origin_zone_id: UUID
     destination_zone_id: UUID
     trip_type: Literal["directo", "indirecto"] | None = None

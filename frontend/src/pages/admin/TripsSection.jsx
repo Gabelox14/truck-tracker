@@ -128,7 +128,7 @@ function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
     <li className="py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-medium text-slate-900">
-          {driverNames[trip.driver_id] ?? "Chofer"} · {truckPlates[trip.truck_id] ?? "Camión"}
+          {driverNames[trip.driver_id] ?? "Chofer"} · {trip.truck_id ? (truckPlates[trip.truck_id] ?? "Camión") : "Tercero"}
         </span>
         <span className="flex items-center gap-2">
           <ReviewBadge status={trip.review_status} />
