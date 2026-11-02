@@ -39,6 +39,16 @@ function RateCell({ rate, route, vehicleClass }) {
     onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo guardar la tarifa", "error"),
   });
 
+  const remove = useMutation({
+    mutationFn: async () => apiClient.delete(`/rates/${rate.id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rates"] });
+      setEditing(false);
+      showToast("Tarifa quitada");
+    },
+    onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo quitar la tarifa", "error"),
+  });
+
   if (editing) {
     return (
       <form
@@ -59,9 +69,23 @@ function RateCell({ rate, route, vehicleClass }) {
           autoFocus
           required
         />
-        <Button type="submit" disabled={save.isPending}>
+        <Button type="submit" disabled={save.isPending || remove.isPending}>
           Guardar
         </Button>
+        {rate && (
+          <Button
+            variant="ghost"
+            type="button"
+            disabled={save.isPending || remove.isPending}
+            onClick={() => {
+              if (window.confirm("¿Quitar esta tarifa? Los vehículos de esa ruta y clase ya no tomarán monto automático.")) {
+                remove.mutate();
+              }
+            }}
+          >
+            Quitar
+          </Button>
+        )}
         <Button variant="ghost" type="button" onClick={() => setEditing(false)}>
           Cancelar
         </Button>
@@ -234,6 +258,7 @@ export default function RatesSection() {
           En los viajes directos el monto lo fija la ruta: cada vehículo toma la tarifa de su ruta y clase, y el total
           del viaje es la suma. La misma tarifa vale en los dos sentidos si solo hay una cargada.
         </p>
+        <p className="mt-1 text-sm text-slate-500">Toca un monto para cambiarlo o quitarlo.</p>
         {rows.length ? (
           <div className="relative mt-4 overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
