@@ -21,6 +21,7 @@ services:
         value: production
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Modelo y esfuerzo definidos para leer VINs: no cambiar sin probar con fotos reales.
       - key: ANTHROPIC_MODEL
         value: claude-sonnet-5-5
       - key: ANTHROPIC_EFFORT

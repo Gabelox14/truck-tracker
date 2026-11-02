@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     app_base_url: str | None = None
 
     # Claude (vision + extracción). Sin llave, los endpoints de /intake responden 503.
+    # Modelo y esfuerzo definidos: claude-sonnet-5-5 con effort "low", elegidos por
+    # precisión al leer VINs. No cambiarlos sin probar antes con fotos reales.
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-5-5"
     anthropic_effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
