@@ -18,10 +18,15 @@ def list_for_trip(db: Session, trip_id: str, kind: str | None = None) -> list[In
     return query.order_by(IntakeFile.created_at).all()
 
 
+def list_children(db: Session, parent_id: str) -> list[IntakeFile]:
+    return db.query(IntakeFile).filter(IntakeFile.parent_id == parent_id).order_by(IntakeFile.created_at).all()
+
+
 def list_unassigned(db: Session, limit: int = 100) -> list[IntakeFile]:
+    """Borradores: lecturas sin viaje (las fotos extra de un vehículo van con su principal)."""
     return (
         db.query(IntakeFile)
-        .filter(IntakeFile.trip_id.is_(None), IntakeFile.status == "processed")
+        .filter(IntakeFile.trip_id.is_(None), IntakeFile.status == "processed", IntakeFile.parent_id.is_(None))
         .order_by(IntakeFile.created_at.desc())
         .limit(limit)
         .all()

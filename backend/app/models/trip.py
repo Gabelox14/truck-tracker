@@ -33,6 +33,7 @@ class Trip(Base):
     trip_type = Column(String, nullable=True)
     origin_text = Column(String, nullable=True)
     destination_text = Column(String, nullable=True)
+    requested_by = Column(String, nullable=True)
     intake_source = Column(String, nullable=False, server_default="manual")
     review_status = Column(String, nullable=False, server_default="ok")
     review_notes = Column(Text, nullable=True)

@@ -9,7 +9,7 @@ from app.models.trip import Trip
 from app.models.trip_car import TripCar
 from app.repositories import intake_file_repository, trip_car_repository
 from app.schemas.intake import AiUsageOut, NhtsaDecodeOut, VinPhotoExtraction, VinPhotoIntakeOut, VinPhotoResult
-from app.services import audio_intake_service, image_service, nhtsa_service, vin_service
+from app.services import audio_intake_service, image_service, nhtsa_service, rate_service, vin_service
 from app.services.claude_service import ClaudeExtractionError, ClaudeExtractor, ClaudeUsage
 from app.services.storage_service import SupabaseStorage, object_path
 
@@ -79,20 +79,24 @@ def _total_usage(usages: list[ClaudeUsage]) -> AiUsageOut:
 
 
 def process_vin_photo(
-    loaded: image_service.LoadedImage,
+    loaded: image_service.LoadedImage | list[image_service.LoadedImage],
     extractor: ClaudeExtractor,
     decode_vin: NhtsaDecoder | None = None,
 ) -> VinPhotoResult:
+    """Una o varias fotos del mismo vehículo (etiqueta del VIN, carro) → una lectura."""
     decode_vin = decode_vin or nhtsa_service.decode_vin
-    prepared = image_service.prepare(loaded)
+    photos = loaded if isinstance(loaded, list) else [loaded]
+    prepared = [image_service.prepare(photo) for photo in photos]
     extraction, usage = extractor.read_vin_photo(prepared)
     usages = [usage]
     check = vin_service.analyze(extraction.vin_text) if extraction.vin_text else None
 
     if _needs_second_look(extraction, check):
-        crop = image_service.crop_region(loaded, extraction.vin_bbox, prepared.scale)
+        index = (extraction.vin_image or 1) - 1
+        index = index if 0 <= index < len(photos) else 0
+        crop = image_service.crop_region(photos[index], extraction.vin_bbox, prepared[index].scale)
         if crop is not None:
-            closer, closer_usage = extractor.read_vin_photo(crop, is_crop=True)
+            closer, closer_usage = extractor.read_vin_photo([crop], is_crop=True)
             usages.append(closer_usage)
             closer_check = vin_service.analyze(closer.vin_text) if closer.vin_text else None
             if _reading_score(closer, closer_check) > _reading_score(extraction, check):
@@ -181,15 +185,24 @@ def _mention_mismatch(fields: dict, mentions: list) -> str | None:
 def _add_car_from_photo(db: Session, record: IntakeFile, trip: Trip, user_id: str) -> TripCar:
     result = VinPhotoResult.model_validate(record.extraction)
     record.trip_id = trip.id
+    for extra in intake_file_repository.list_children(db, str(record.id)):
+        extra.trip_id = trip.id
     fields = car_fields_from_vin_result(result)
     mismatch = _mention_mismatch(fields, audio_intake_service.trip_vehicle_mentions(db, str(trip.id)))
     if mismatch:
         fields["review_status"] = "needs_review"
         fields["review_notes"] = "\n".join(filter(None, [fields["review_notes"], mismatch]))
-    return trip_car_repository.add(
-        db,
-        TripCar(trip_id=trip.id, photo_file_id=record.id, created_by=user_id, **fields),
+    car = TripCar(
+        trip_id=trip.id,
+        photo_file_id=record.id,
+        created_by=user_id,
+        vehicle_class=rate_service.vehicle_class_for(fields["brand"], fields["model"]),
+        **fields,
     )
+    rate_service.price_car(db, trip, car)
+    trip_car_repository.add(db, car)
+    rate_service.recompute_trip_amount(db, trip)
+    return car
 
 
 def _intake_out(record: IntakeFile, car: TripCar | None, duplicate: bool) -> VinPhotoIntakeOut:
@@ -212,17 +225,47 @@ def attach_photo_to_trip(db: Session, record: IntakeFile, trip: Trip, user_id: s
     return car
 
 
+def _store_extra_photos(
+    db: Session, storage: SupabaseStorage, parent: IntakeFile, photos: list[tuple[bytes, image_service.LoadedImage]], user_id: str
+) -> None:
+    """Las fotos extra del vehículo se guardan colgadas de la principal (sin lectura propia)."""
+    for data, loaded in photos:
+        file_sha256 = hashlib.sha256(data).hexdigest()
+        if intake_file_repository.get_by_sha256(db, file_sha256) is not None:
+            continue
+        path = object_path("vin-photos", file_sha256, loaded.media_type)
+        storage.upload(path, data, loaded.media_type)
+        intake_file_repository.add(
+            db,
+            IntakeFile(
+                kind="vin_photo",
+                file_sha256=file_sha256,
+                storage_path=path,
+                mime_type=loaded.media_type,
+                size_bytes=len(data),
+                status="processed",
+                parent_id=parent.id,
+                trip_id=parent.trip_id,
+                created_by=user_id,
+            ),
+        )
+
+
 def ingest_vin_photo(
     db: Session,
     *,
-    data: bytes,
+    data: bytes | list[bytes],
     user_id: str,
     trip: Trip | None,
     extractor: ClaudeExtractor,
     storage: SupabaseStorage,
     decode_vin: NhtsaDecoder | None = None,
 ) -> VinPhotoIntakeOut:
-    loaded = image_service.load(data)
+    """Una lectura por vehículo: la primera foto es la principal (guarda la lectura y
+    el carro apunta a ella); las demás quedan como fotos extra del mismo vehículo."""
+    datas = data if isinstance(data, list) else [data]
+    photos = [(item, image_service.load(item)) for item in datas]
+    data, loaded = photos[0]
     file_sha256 = hashlib.sha256(data).hexdigest()
     record = intake_file_repository.get_by_sha256(db, file_sha256)
 
@@ -252,7 +295,7 @@ def ingest_vin_photo(
         )
 
     try:
-        result = process_vin_photo(loaded, extractor, decode_vin)
+        result = process_vin_photo([photo for _, photo in photos], extractor, decode_vin)
     except ClaudeExtractionError as exc:
         record.status = "failed"
         record.error = str(exc)
@@ -265,6 +308,7 @@ def ingest_vin_photo(
     record.ai_model = result.usage.model
     record.input_tokens = result.usage.input_tokens
     record.output_tokens = result.usage.output_tokens
+    _store_extra_photos(db, storage, record, photos[1:], user_id)
     car = _add_car_from_photo(db, record, trip, user_id) if trip is not None else None
     db.commit()
     return _intake_out(record, car, duplicate=False)

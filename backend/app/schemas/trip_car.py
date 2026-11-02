@@ -13,6 +13,8 @@ class TripCarCreate(BaseModel):
     model: str | None = None
     model_year: int | None = Field(default=None, ge=1900, le=2100)
     color: str | None = None
+    vehicle_class: Literal["liviano", "carga"] | None = None
+    amount: float | None = Field(default=None, ge=0)
 
 
 class TripCarUpdate(BaseModel):
@@ -25,6 +27,8 @@ class TripCarUpdate(BaseModel):
     model: str | None = None
     model_year: int | None = Field(default=None, ge=1900, le=2100)
     color: str | None = None
+    vehicle_class: Literal["liviano", "carga"] | None = None
+    amount: float | None = Field(default=None, ge=0)
     review_status: Literal["confirmed", "needs_review"] | None = None
 
 
@@ -43,6 +47,8 @@ class TripCarOut(BaseModel):
     vin_valid: bool | None = None
     check_digit_ok: bool | None = None
     ocr_confidence: float | None = None
+    amount: float | None = None
+    vehicle_class: str = "liviano"
     photo_file_id: UUID | None = None
     review_status: str = "ok"
     review_notes: str | None = None

@@ -21,23 +21,26 @@ _SERVER_FALLBACK_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
 _SERVER_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 _MAX_TOKENS = 8000
 
-VIN_SYSTEM_PROMPT = """Lees fotos de vehículos para una empresa de grúas de Costa Rica que transporta carros nuevos y usados, muchos importados de Estados Unidos, Japón y Corea.
+VIN_SYSTEM_PROMPT = """Lees fotos de vehículos para una empresa de grúas de Costa Rica que transporta carros nuevos y usados, muchos importados de Estados Unidos, Japón, India, China y Corea.
 
-Transcribe el VIN (o el número de chasis) y anota lo que se ve del vehículo:
+Puede llegar una sola foto o varias del mismo vehículo (por ejemplo la etiqueta o la placa del VIN y el carro por detrás). Transcribe el VIN (o el número de chasis) y anota lo que se ve del vehículo usando todas las fotos:
 - Copia el VIN carácter por carácter tal como está impreso. No lo corrijas, no lo completes y no lo deduzcas de la marca o el modelo.
 - Si un carácter no se distingue con certeza, pon "?" en su lugar. Si no hay ningún VIN ni número de chasis visible, vin_text es null.
 - Los números de chasis japoneses (por ejemplo "GRJ150-0012345") también van en vin_text, tal cual.
-- Marca, modelo y color salen de lo que se ve: logo, calcomanía, documento o carrocería. Si no se distinguen, null.
-- vin_bbox es el rectángulo que encierra el VIN, en píxeles de esta imagen."""
+- Marca, modelo y color salen de lo que se ve: logo, insignia del modelo en la carrocería, calcomanía o documento. Las placas de fábrica traen un código de tipo (por ejemplo "FL61S"), que no es el modelo: el modelo es el nombre comercial que se lee en el carro. Si no se distinguen, null.
+- vin_image es el número de la foto donde está el VIN y vin_bbox el rectángulo que lo encierra, en píxeles de esa foto."""
 
 TRIP_SYSTEM_PROMPT = """Extraes los datos de un viaje de grúa de la transcripción de una nota de voz de un chofer en Costa Rica.
 
-- No inventes nada: lo que no se dice queda en null. La transcripción puede tener errores; interpreta lo que el chofer quiso decir.
+- No inventes nada: lo que no se dice queda en null. La transcripción puede tener errores; interpreta lo que el chofer quiso decir (por ejemplo "France" es el Suzuki Fronx y "Espresso" el Suzuki S-Presso).
 - Montos en jerga costarricense: un "rojo" es un billete de mil colones ("50 rojos" = 50000 CRC), una "teja" son 100 colones y un "melón" es un millón de colones. Si dice dólares, la moneda es USD. Si da un número sin decir ni dar a entender la moneda, cost_amount lleva el número y cost_currency es null.
+- Si dice que el monto es "cada uno" o por vehículo, cost_amount es el monto de un vehículo y cost_per_vehicle es true; si es el total del viaje, cost_per_vehicle es false.
+- La unidad es el camión ("unidad M2"); el chofer es la persona que maneja; quien lo solicita es el cliente que pidió el traslado.
 - Lugares: spoken es como lo dijo; normalized es el nombre correcto del lugar en Costa Rica; zone es el nombre exacto de una de las zonas de la empresa (lista abajo) solo si el lugar es esa zona.
 - trip_date: usa la fecha de hoy que se indica para resolver "hoy", "ayer" o un día de la semana."""
 
 _PHOTO_PROMPT = "Lee el VIN de esta foto."
+_PHOTOS_PROMPT = "Estas {count} fotos son del mismo vehículo. Lee el VIN y anota el vehículo usando todas."
 _CROP_PROMPT = (
     "Esta imagen es un recorte ampliado de la zona del VIN de una foto. "
     "Transcribe el VIN con el mismo cuidado; si el recorte no muestra el vehículo, deja marca, modelo y color en null."
@@ -65,8 +68,10 @@ class ClaudeExtractor:
         self.model = model
         self.effort = effort
 
-    def read_vin_photo(self, image: PreparedImage, *, is_crop: bool = False) -> tuple[VinPhotoExtraction, ClaudeUsage]:
-        content = [
+    def read_vin_photo(
+        self, images: list[PreparedImage], *, is_crop: bool = False
+    ) -> tuple[VinPhotoExtraction, ClaudeUsage]:
+        content: list[dict] = [
             {
                 "type": "image",
                 "source": {
@@ -74,9 +79,16 @@ class ClaudeExtractor:
                     "media_type": image.media_type,
                     "data": base64.standard_b64encode(image.data).decode("ascii"),
                 },
-            },
-            {"type": "text", "text": _CROP_PROMPT if is_crop else _PHOTO_PROMPT},
+            }
+            for image in images
         ]
+        if is_crop:
+            prompt = _CROP_PROMPT
+        elif len(images) > 1:
+            prompt = _PHOTOS_PROMPT.format(count=len(images))
+        else:
+            prompt = _PHOTO_PROMPT
+        content.append({"type": "text", "text": prompt})
         return self._parse("vin_photo", VIN_SYSTEM_PROMPT, content, VinPhotoExtraction)
 
     def extract_trip(

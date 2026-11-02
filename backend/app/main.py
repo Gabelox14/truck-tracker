@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.drivers import router as drivers_router
 from app.api.intake import router as intake_router
 from app.api.profiles import router as profiles_router
+from app.api.rates import router as rates_router
 from app.api.trips import router as trips_router
 from app.api.trucks import router as trucks_router
 from app.api.zones import router as zones_router
@@ -36,6 +37,7 @@ app.include_router(drivers_router)
 app.include_router(zones_router)
 app.include_router(trips_router)
 app.include_router(intake_router)
+app.include_router(rates_router)
 
 
 @app.get("/health")

@@ -58,6 +58,7 @@ def create_trip_from_drafts(db: Session, payload: DraftTripCreate, user_id: str)
         origin_zone_id=payload.origin_zone_id,
         destination_zone_id=payload.destination_zone_id,
         trip_type=payload.trip_type,
+        requested_by=payload.requested_by,
         amount=payload.amount,
         currency=payload.currency,
         intake_source="upload",

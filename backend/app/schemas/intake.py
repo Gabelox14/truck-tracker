@@ -47,8 +47,11 @@ class VinPhotoExtraction(BaseModel):
     confidence: float = Field(
         ge=0, le=1, description="Seguridad de 0 a 1 de que vin_text está bien leído. 0 si vin_text es null."
     )
+    vin_image: int | None = Field(
+        description="Número de la foto (1, 2...) en la que se ve el VIN. null si no hay VIN."
+    )
     vin_bbox: VinBox | None = Field(
-        description="Rectángulo que encierra el VIN, en píxeles de esta imagen. null si no hay VIN."
+        description="Rectángulo que encierra el VIN, en píxeles de la foto indicada en vin_image. null si no hay VIN."
     )
     notes: str | None = Field(
         description="Observación breve en español (reflejos, borroso, VIN cortado). null si no hay nada que señalar."
@@ -141,6 +144,21 @@ class TripAudioExtraction(BaseModel):
         description="CRC o USD según lo dicho. null si se dio un número sin decir la moneda."
     )
     cost_spoken: str | None = Field(description="La frase exacta del costo (p. ej. '50 rojos'). null si no se dijo.")
+    cost_per_vehicle: bool | None = Field(
+        description="true si el monto es por cada vehículo ('cada uno'), false si es el total del viaje, null si no se dijo monto."
+    )
+    plus_iva: bool | None = Field(description="true si dijo 'más IVA', false si dijo que lo incluye, null si no lo mencionó.")
+    vehicle_count: int | None = Field(description="Cantidad de vehículos que dice que trasladó. null si no la dice.")
+    unit_code: str | None = Field(description="La unidad (camión) tal como la dijo, p. ej. 'M2'. null si no la dijo.")
+    driver_name: str | None = Field(description="Nombre del chofer si se menciona. null si no.")
+    requested_by: str | None = Field(
+        description="Nombre completo de quien solicitó el traslado ('lo solicita…', 'solicitado por…'). null si no se dice."
+    )
+    processed_by: str | None = Field(description="Con quién se tramita, si lo dice. null si no.")
+    invoice_type: Literal["directa", "proforma"] | None = Field(
+        description="'directa' si dice factura directa, 'proforma' si dice proforma, null si no lo dice."
+    )
+    in_contract: bool | None = Field(description="true si dice que está en contrato, false si dice que no, null si no lo dice.")
     vehicle_mentions: list[VehicleMention] = Field(description="Vehículos mencionados; lista vacía si ninguno.")
     trip_date: date | None = Field(description="Fecha del viaje si se menciona o se deduce (ayer, el lunes); null si no.")
     notes: str | None = Field(description="Otra información útil, breve y en español. null si no hay.")
@@ -160,6 +178,11 @@ class TripAudioResult(BaseModel):
     cost_amount: float | None
     cost_currency: Currency | None
     currency_assumed: bool = False
+    cost_per_vehicle: bool | None = None
+    rate_amount: float | None = None
+    truck_id: UUID | None = None
+    driver_id: UUID | None = None
+    requested_by: str | None = None
     review_status: ReviewStatus
     review_reasons: list[str]
     transcription: TranscriptionOut
@@ -202,6 +225,7 @@ class DraftTripCreate(BaseModel):
     amount: float | None = Field(default=None, ge=0)
     currency: Currency = "CRC"
     trip_date: date | None = None
+    requested_by: str | None = None
     completed: bool = True
 
 

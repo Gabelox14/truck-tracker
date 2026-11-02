@@ -1,16 +1,18 @@
 import hashlib
-import re
-import unicodedata
+from collections.abc import Callable
 from datetime import date
 
 from sqlalchemy.orm import Session
 
 from app.core.time import costa_rica_today
+from app.models.driver import Driver
 from app.models.intake_file import IntakeFile
+from app.models.route_rate import RouteRate
 from app.models.trip import Trip
 from app.models.trip_car import TripCar
+from app.models.truck import Truck
 from app.models.zone import Zone
-from app.repositories import intake_file_repository, trip_car_repository, zone_repository
+from app.repositories import intake_file_repository, trip_car_repository, truck_repository, zone_repository
 from app.schemas.intake import (
     AiUsageOut,
     AudioIntakeOut,
@@ -20,17 +22,37 @@ from app.schemas.intake import (
     TripAudioResult,
     VehicleMention,
 )
-from app.services import audio_service, vin_service
+from app.services import audio_service, rate_service, vin_service
 from app.services.claude_service import ClaudeExtractionError, ClaudeExtractor, ClaudeUsage
+from app.services.text_utils import fold, unit_code
 from app.services.storage_service import SupabaseStorage, object_path
 from app.services.transcription_service import Transcriber, TranscriptionError, build_prompt
 
 CONFIDENCE_THRESHOLD = 0.7
 
 
-def _fold(text: str) -> str:
-    without_accents = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
-    return " ".join(re.sub(r"[^a-z0-9]+", " ", without_accents.lower()).split())
+_fold = fold
+
+RateLookup = Callable[[object, object], "RouteRate | None"]
+
+
+def match_truck(unit: str | None, trucks: list[Truck]) -> Truck | None:
+    """'M2' dicho en el audio → el camión con código M02."""
+    code = unit_code(unit)
+    if code is None:
+        return None
+    return next((truck for truck in trucks if truck.code and unit_code(truck.code) == code), None)
+
+
+def match_driver(name: str | None, drivers: list[Driver]) -> Driver | None:
+    """Solo si el nombre dicho corresponde a un único chofer activo."""
+    if not name:
+        return None
+    said = fold(name).split()
+    if not said:
+        return None
+    found = [driver for driver in drivers if driver.active and set(said) <= set(fold(driver.full_name).split())]
+    return found[0] if len(found) == 1 else None
 
 
 def match_zone(place: PlaceExtraction | None, zones: list[Zone]) -> Zone | None:
@@ -60,11 +82,14 @@ def build_audio_result(
     extraction: TripAudioExtraction | None,
     usage: ClaudeUsage | None,
     zones: list[Zone],
+    trucks: list[Truck] = (),
+    drivers: list[Driver] = (),
+    rate_lookup: RateLookup | None = None,
 ) -> TripAudioResult:
     """Resultado como borrador: los motivos de revisión piden lo que falta para crear el viaje."""
     reasons: list[str] = []
-    origin_zone = destination_zone = None
-    amount = currency = None
+    origin_zone = destination_zone = truck = driver = rate = None
+    amount = currency = per_vehicle = None
     currency_assumed = False
 
     if extraction is None:
@@ -81,12 +106,33 @@ def build_audio_result(
         elif destination_zone is None:
             reasons.append(f"El destino «{extraction.destination.normalized}» no es una zona registrada")
 
-        amount, currency = extraction.cost_amount, extraction.cost_currency
-        if amount is None:
+        truck = match_truck(extraction.unit_code, list(trucks))
+        if extraction.unit_code and truck is None:
+            reasons.append(f"La unidad «{extraction.unit_code}» no está registrada como camión")
+        driver = match_driver(extraction.driver_name, list(drivers))
+
+        if origin_zone and destination_zone and rate_lookup is not None and extraction.invoice_type != "proforma":
+            rate = rate_lookup(origin_zone.id, destination_zone.id)
+
+        amount, currency, per_vehicle = extraction.cost_amount, extraction.cost_currency, extraction.cost_per_vehicle
+        if amount is None and rate is not None:
+            # En directos el monto lo fija la ruta: si no se dijo, vale la tarifa.
+            amount, currency, per_vehicle = float(rate.amount), rate.currency, True
+        elif amount is None:
             reasons.append("No se dijo el costo")
         elif currency is None:
             currency, currency_assumed = "CRC", True
             reasons.append("No se dijo la moneda: se asumió colones")
+        if (
+            rate is not None
+            and extraction.cost_amount is not None
+            and per_vehicle is not False
+            and (round(amount, 2), currency) != (round(float(rate.amount), 2), rate.currency)
+        ):
+            reasons.append(
+                f"El audio dice {format_money(amount, currency)} por vehículo, "
+                f"pero la tarifa de esa ruta es {format_money(float(rate.amount), rate.currency)}"
+            )
         if extraction.confidence < CONFIDENCE_THRESHOLD:
             reasons.append(f"Extracción con poca seguridad ({extraction.confidence:.0%})")
 
@@ -98,6 +144,13 @@ def build_audio_result(
         cost_amount=amount,
         cost_currency=currency,
         currency_assumed=currency_assumed,
+        cost_per_vehicle=per_vehicle,
+        rate_amount=float(rate.amount) if rate is not None else None,
+        truck_id=truck.id if truck else None,
+        driver_id=driver.id if driver else None,
+        requested_by=" ".join(word.capitalize() for word in extraction.requested_by.split())
+        if extraction is not None and extraction.requested_by
+        else None,
         review_status="needs_review" if reasons else "ok",
         review_reasons=reasons,
         transcription=transcription,
@@ -165,18 +218,52 @@ def apply_audio_to_trip(db: Session, trip: Trip, result: TripAudioResult, upload
                 f"El audio dice que {verb} {said.name if said else '?'}, pero el viaje tiene {current.name if current else '?'}"
             )
 
-    if result.cost_amount is not None:
+    if result.requested_by and not trip.requested_by:
+        trip.requested_by = result.requested_by
+    if extraction.invoice_type == "directa" and trip.trip_type is None:
+        trip.trip_type = "directo"
+    if result.truck_id is not None and result.truck_id != trip.truck_id:
+        trucks = {truck.id: truck for truck in truck_repository.list_all(db, limit=200)}
+        current = trucks.get(trip.truck_id)
+        reasons.append(
+            f"El audio dice unidad {extraction.unit_code}, pero el viaje tiene "
+            f"{(current.code or current.plate) if current else '?'}"
+        )
+
+    cars = trip_car_repository.list_for_trip(db, str(trip.id))
+    if extraction.vehicle_count and cars and extraction.vehicle_count != len(cars):
+        reasons.append(f"El audio dice {extraction.vehicle_count} vehículos, pero el viaje tiene {len(cars)}")
+
+    if result.cost_amount is not None and result.cost_per_vehicle and cars:
+        # Monto por vehículo: cada carro sin monto toma la tarifa (o lo dicho si la
+        # ruta no tiene tarifa); el total del viaje es la suma.
+        for car in cars:
+            if car.amount is None:
+                rate_service.price_car(db, trip, car)
+            if car.amount is None and trip.currency == result.cost_currency:
+                car.amount = result.cost_amount
+                if not uploaded_by_staff:
+                    reasons.append("Monto dictado por el chofer: falta confirmarlo")
+        rate_service.recompute_trip_amount(db, trip)
+    elif result.cost_amount is not None:
+        total = result.cost_amount * (extraction.vehicle_count or 1) if result.cost_per_vehicle else result.cost_amount
         if trip.amount is None:
-            trip.amount = result.cost_amount
+            trip.amount = total
             trip.currency = result.cost_currency
             if not uploaded_by_staff:
                 reasons.append("Monto dictado por el chofer: falta confirmarlo")
-            if result.currency_assumed:
-                reasons.append("No se dijo la moneda: se asumió colones")
-        elif (round(float(trip.amount), 2), trip.currency) != (round(result.cost_amount, 2), result.cost_currency):
+        elif (round(float(trip.amount), 2), trip.currency) != (round(total, 2), result.cost_currency):
             reasons.append(
-                f"El audio dice {format_money(result.cost_amount, result.cost_currency)}, "
+                f"El audio dice {format_money(total, result.cost_currency)}, "
                 f"pero el viaje tiene {format_money(float(trip.amount), trip.currency)}"
+            )
+    if result.currency_assumed and extraction.cost_amount is not None:
+        reasons.append("No se dijo la moneda: se asumió colones")
+    if result.rate_amount is not None and extraction.cost_amount is not None and result.cost_per_vehicle is not False:
+        if round(extraction.cost_amount, 2) != round(result.rate_amount, 2):
+            reasons.append(
+                f"El audio dice {format_money(extraction.cost_amount, result.cost_currency)} por vehículo, "
+                f"pero la tarifa de esa ruta es {format_money(result.rate_amount, result.cost_currency)}"
             )
 
     if extraction.trip_date is not None and abs((extraction.trip_date - trip.started_at.date()).days) > 1:
@@ -279,6 +366,11 @@ def ingest_audio(
         extraction,
         usage,
         zones,
+        trucks=truck_repository.list_all(db, limit=200),
+        drivers=db.query(Driver).all(),
+        rate_lookup=lambda origin, destination: rate_service.find_rate(
+            db, rate_service.DEFAULT_CATEGORY, origin, destination, "liviano"
+        ),
     )
     record.status = "processed"
     record.error = None

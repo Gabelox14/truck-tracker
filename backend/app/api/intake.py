@@ -84,20 +84,34 @@ def get_accessible_file(db: Session, user_id: str, file_id: UUID) -> IntakeFile:
     return record
 
 
+MAX_PHOTOS_PER_VEHICLE = 4
+
+
 @router.post("/vin-photo", response_model=VinPhotoIntakeOut)
 def upload_vin_photo(
-    file: UploadFile = File(..., description="Foto del VIN en JPEG, PNG o WebP"),
+    file: UploadFile | None = File(None, description="Una foto del VIN en JPEG, PNG o WebP"),
+    files: list[UploadFile] | None = File(
+        None, description="Varias fotos del mismo vehículo (etiqueta del VIN, carro); la primera es la principal"
+    ),
     trip_id: UUID | None = Form(None, description="Viaje al que se agrega el carro; sin viaje queda como borrador"),
     user_id: str = Depends(require_staff_or_driver),
     db: Session = Depends(get_db),
     extractor: claude_service.ClaudeExtractor = Depends(get_extractor),
     storage: storage_service.SupabaseStorage = Depends(get_storage),
 ):
+    uploads = [upload for upload in [file, *(files or [])] if upload is not None]
+    if not uploads:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Falta la foto")
+    if len(uploads) > MAX_PHOTOS_PER_VEHICLE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Máximo {MAX_PHOTOS_PER_VEHICLE} fotos por vehículo",
+        )
     trip = ensure_trip_access(db, user_id, trip_id) if trip_id else None
-    data = read_upload(file, settings.intake_max_image_mb)
+    datas = [read_upload(upload, settings.intake_max_image_mb) for upload in uploads]
     try:
         return intake_service.ingest_vin_photo(
-            db, data=data, user_id=user_id, trip=trip, extractor=extractor, storage=storage
+            db, data=datas, user_id=user_id, trip=trip, extractor=extractor, storage=storage
         )
     except image_service.UnsupportedImageError as exc:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=str(exc))

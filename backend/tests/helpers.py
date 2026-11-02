@@ -29,6 +29,7 @@ def make_extraction(**overrides) -> VinPhotoExtraction:
         "color": "gris",
         "image_quality": "buena",
         "confidence": 0.95,
+        "vin_image": 1,
         "vin_bbox": VinBox(x_min=100, y_min=200, x_max=500, y_max=240),
         "notes": None,
     }
@@ -51,8 +52,10 @@ class FakeExtractor:
         reading = self.trip_readings.pop(0) if len(self.trip_readings) > 1 else self.trip_readings[0]
         return reading, ClaudeUsage(model=self.model, input_tokens=600, output_tokens=150)
 
-    def read_vin_photo(self, image, *, is_crop: bool = False):
-        self.calls.append({"is_crop": is_crop, "width": image.width, "height": image.height})
+    def read_vin_photo(self, images, *, is_crop: bool = False):
+        self.calls.append(
+            {"is_crop": is_crop, "count": len(images), "width": images[0].width, "height": images[0].height}
+        )
         reading = self.readings.pop(0) if len(self.readings) > 1 else self.readings[0]
         return reading, ClaudeUsage(model=self.model, input_tokens=1500, output_tokens=200)
 
@@ -117,7 +120,7 @@ def seed_fleet(db):
     db.flush()
     driver = Driver(profile_id=driver_user_id, full_name="Chofer Uno")
     other_driver = Driver(profile_id=other_user_id, full_name="Chofer Dos")
-    truck = Truck(plate=f"TST-{suffix}", code="T1", brand="Isuzu")
+    truck = Truck(plate=f"TST-{suffix}", code="M02", brand="Isuzu")
     origin = Zone(name=f"Coyol {suffix}")
     destination = Zone(name=f"Uruca {suffix}")
     db.add_all([driver, other_driver, truck, origin, destination])
@@ -149,6 +152,15 @@ def make_trip_extraction(**overrides) -> TripAudioExtraction:
         "cost_amount": 50000,
         "cost_currency": "CRC",
         "cost_spoken": "50 rojos",
+        "cost_per_vehicle": None,
+        "plus_iva": None,
+        "vehicle_count": None,
+        "unit_code": None,
+        "driver_name": None,
+        "requested_by": None,
+        "processed_by": None,
+        "invoice_type": None,
+        "in_contract": None,
         "vehicle_mentions": [VehicleMention(make="Toyota", model="Hilux", color="blanco", plate=None)],
         "trip_date": None,
         "notes": None,

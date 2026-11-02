@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.time import local_date
-
 from app.models.driver import Driver
 from app.models.profile import Profile
 from app.models.trip import Trip
@@ -10,7 +9,8 @@ from app.models.trip_car import TripCar
 from app.repositories import trip_car_repository, trip_repository, truck_repository, zone_repository
 from app.schemas.trip import TripReviewUpdate
 from app.schemas.trip_car import TripCarCreate, TripCarUpdate
-from app.services import vin_service
+from app.services import rate_service, vin_service
+from app.services.text_utils import short_name, strip_accents
 
 
 def create_trip(
@@ -28,13 +28,17 @@ def update_trip_amount(db: Session, trip_id: str, amount: float, currency: str |
 
 
 def review_trip(db: Session, trip: Trip, payload: TripReviewUpdate) -> Trip:
-    """Aplica las correcciones enviadas y deja el viaje confirmado."""
+    """Aplica las correcciones enviadas y deja el viaje confirmado. Si cambia la
+    ruta, los vehículos se vuelven a tarifar con la tarifa de la ruta nueva."""
+    route = (trip.origin_zone_id, trip.destination_zone_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
         if value is not None:
             setattr(trip, key, value)
     if trip.origin_zone_id == trip.destination_zone_id:
         db.rollback()
         raise ValueError("El origen y el destino tienen que ser distintos")
+    if (trip.origin_zone_id, trip.destination_zone_id) != route:
+        rate_service.reprice_trip(db, trip)
     trip.review_status = "confirmed"
     db.commit()
     db.refresh(trip)
@@ -62,15 +66,26 @@ def vin_fields(raw: str | None) -> dict:
 
 
 def add_trip_car(db: Session, trip_id: str, payload: TripCarCreate, user_id: str) -> TripCar:
-    fields = {
-        "brand": payload.brand.strip(),
-        "model": payload.model,
-        "model_year": payload.model_year,
-        "color": payload.color,
-        "created_by": user_id,
+    """Carro agregado a mano: sin monto explícito toma la tarifa de la ruta."""
+    trip = trip_repository.get(db, trip_id)
+    brand = payload.brand.strip()
+    car = TripCar(
+        trip_id=trip.id,
+        brand=brand,
+        model=payload.model,
+        model_year=payload.model_year,
+        color=payload.color,
+        created_by=user_id,
+        vehicle_class=payload.vehicle_class or rate_service.vehicle_class_for(brand, payload.model),
+        amount=payload.amount,
         **vin_fields(payload.vin),
-    }
-    return trip_car_repository.create(db, trip_id, fields)
+    )
+    rate_service.price_car(db, trip, car)
+    trip_car_repository.add(db, car)
+    rate_service.recompute_trip_amount(db, trip)
+    db.commit()
+    db.refresh(car)
+    return car
 
 
 def get_trip_car(db: Session, trip_id: str, car_id: str) -> TripCar | None:
@@ -79,16 +94,37 @@ def get_trip_car(db: Session, trip_id: str, car_id: str) -> TripCar | None:
 
 def update_trip_car(db: Session, car: TripCar, payload: TripCarUpdate) -> TripCar:
     changes = payload.model_dump(exclude_unset=True)
-    fields = {key: changes[key] for key in ("brand", "model", "model_year", "color") if key in changes}
+    fields = {
+        key: changes[key]
+        for key in ("brand", "model", "model_year", "color", "vehicle_class", "amount")
+        if key in changes
+    }
     if "vin" in changes:
         fields.update(vin_fields(changes["vin"]))
     if changes.get("review_status"):
         fields["review_status"] = changes["review_status"]
-    return trip_car_repository.update(db, car, fields)
+    trip = trip_repository.get(db, str(car.trip_id))
+    if "vehicle_class" in fields and "amount" not in fields and fields["vehicle_class"] != car.vehicle_class:
+        # Cambió la clase: se vuelve a tomar la tarifa de esa clase.
+        car.vehicle_class = fields["vehicle_class"]
+        car.amount = None
+        rate_service.price_car(db, trip, car)
+        fields["amount"] = car.amount
+    for key, value in fields.items():
+        setattr(car, key, value)
+    rate_service.recompute_trip_amount(db, trip)
+    db.commit()
+    db.refresh(car)
+    return car
 
 
 def remove_trip_car(db: Session, trip_id: str, car_id: str) -> bool:
-    return trip_car_repository.delete(db, trip_id, car_id)
+    removed = trip_car_repository.delete(db, trip_id, car_id)
+    if removed:
+        trip = trip_repository.get(db, trip_id)
+        rate_service.recompute_trip_amount(db, trip)
+        db.commit()
+    return removed
 
 
 def list_trips_for_user(db: Session, user_id: str, limit: int = 50, offset: int = 0) -> list[Trip]:
@@ -180,8 +216,46 @@ def build_fe_rows(
                     "vin_status": _vin_label(car),
                     "review": _review_label(trip, car),
                     "has_photo": bool(car and car.photo_file_id),
+                    # Con monto por vehículo, cada fila lleva el suyo; si no, el del viaje.
+                    "amount": car.amount if car is not None and car.amount is not None else trip.amount,
                 }
             )
+    return rows
+
+
+def _vehicle_label(car: TripCar) -> str:
+    """'SUZUKI FRONX', 'SUZUKI SPRESSO', 'JAC 1042': como se escribe en el registro de directos."""
+    parts = [car.brand or car.make_from_photo, car.model]
+    return strip_accents(" ".join(part for part in parts if part)).upper().replace("-", "")
+
+
+def build_directos_rows(db: Session, truck_id=None, zone_id=None, date_from=None, date_to=None) -> list[dict]:
+    """Filas del registro "VINS DIRECTOS": una por vehículo de los viajes directos,
+    en orden de fecha, con el monto de cada vehículo."""
+    trips = sorted(
+        _export_trips(db, truck_id, zone_id, date_from, date_to, "directo"),
+        key=lambda trip: trip.started_at,
+    )
+    trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
+    zones = {z.id: z for z in zone_repository.list_all(db, limit=200)}
+    rows = []
+    for trip in trips:
+        truck = trucks.get(trip.truck_id)
+        origin, destination = zones.get(trip.origin_zone_id), zones.get(trip.destination_zone_id)
+        base = {
+            "trip_date": local_date(trip.started_at),
+            "route": strip_accents(
+                f"{origin.name if origin else '?'} - {destination.name if destination else '?'}"
+            ).upper(),
+            "requested_by": short_name(trip.requested_by),
+            "unit": (truck.code or truck.plate) if truck else None,
+        }
+        cars = trip_car_repository.list_for_trip(db, str(trip.id))
+        if not cars:
+            rows.append({**base, "vehicle": None, "vin": None, "amount": trip.amount})
+        for car in cars:
+            amount = car.amount if car.amount is not None else (trip.amount if len(cars) == 1 else None)
+            rows.append({**base, "vehicle": _vehicle_label(car), "vin": car.vin, "amount": amount})
     return rows
 
 

@@ -23,6 +23,13 @@ class IntakeFile(Base):
     mime_type = Column(String, nullable=False)
     size_bytes = Column(Integer, nullable=False)
     trip_id = Column(UUID(as_uuid=True), ForeignKey("trips.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Foto extra del mismo vehículo: apunta a la foto principal, que guarda la lectura.
+    parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("intake_files.id", ondelete="CASCADE", name="fk_intake_files_parent_id"),
+        nullable=True,
+        index=True,
+    )
     status = Column(String, nullable=False, server_default="processed")
     error = Column(String, nullable=True)
     extraction = Column(JSONB, nullable=True)

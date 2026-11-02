@@ -93,6 +93,29 @@ def export_fe(
     )
 
 
+@router.get("/export/directos")
+def export_directos(
+    truck_id: UUID | None = None,
+    zone_id: UUID | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    _admin_id: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = trip_service.build_directos_rows(
+        db,
+        truck_id=str(truck_id) if truck_id else None,
+        zone_id=str(zone_id) if zone_id else None,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return StreamingResponse(
+        export_service.build_directos_workbook(rows),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="VINS DIRECTOS.xlsx"'},
+    )
+
+
 @router.post("", response_model=TripOut, status_code=status.HTTP_201_CREATED)
 def start_trip(
     payload: TripCreate,

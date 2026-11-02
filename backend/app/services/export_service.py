@@ -126,3 +126,53 @@ def build_fe_workbook(rows: list[dict], summary: dict) -> BytesIO:
     wb.save(buffer)
     buffer.seek(0)
     return buffer
+
+
+# Formato "VINS DIRECTOS": el mismo registro que hoy se llena a mano, una fila
+# por vehículo, con el total y el total con IVA a la derecha.
+DIRECTOS_HEADERS = ["FECHA", "VEHICULO", "VIN", "RUTA", "SOLICITADO", "CHOFER", "MONTO", "TOTAL", "CON IVA 13%"]
+DIRECTOS_WIDTHS = [9, 20, 21, 30, 13, 9, 14, 16, 16]
+DIRECTOS_DATE_FORMAT = "d-mmm"
+DIRECTOS_MONEY_FORMAT = '_-[$₡-140A]* #,##0.00_-;\\-[$₡-140A]* #,##0.00_-;_-[$₡-140A]* "-"??_-;_-@_-'
+IVA_RATE = 0.13
+
+
+def build_directos_workbook(rows: list[dict]) -> BytesIO:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Hoja1"
+    ws.append(DIRECTOS_HEADERS)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    for row in rows:
+        ws.append(
+            [
+                row["trip_date"],
+                row.get("vehicle") or "",
+                row.get("vin") or "",
+                row.get("route") or "",
+                row.get("requested_by") or "",
+                row.get("unit") or "",
+                float(row["amount"]) if row.get("amount") is not None else None,
+            ]
+        )
+        line = ws.max_row
+        ws.cell(row=line, column=1).number_format = DIRECTOS_DATE_FORMAT
+        ws.cell(row=line, column=7).number_format = DIRECTOS_MONEY_FORMAT
+
+    last = max(ws.max_row, 2)
+    ws["H2"] = f"=SUM(G2:G{last})"
+    ws["I2"] = f"=H2*{1 + IVA_RATE:g}"
+    for cell in ("H2", "I2"):
+        ws[cell].number_format = DIRECTOS_MONEY_FORMAT
+        ws[cell].font = Font(bold=True)
+    for i, width in enumerate(DIRECTOS_WIDTHS, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:G{last}"
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer

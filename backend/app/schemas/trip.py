@@ -44,6 +44,7 @@ class TripReviewUpdate(BaseModel):
     currency: Currency | None = None
     origin_zone_id: UUID | None = None
     destination_zone_id: UUID | None = None
+    requested_by: str | None = None
 
 
 class TripOut(BaseModel):
@@ -62,6 +63,7 @@ class TripOut(BaseModel):
     trip_type: str | None = None
     origin_text: str | None = None
     destination_text: str | None = None
+    requested_by: str | None = None
     intake_source: str = "manual"
     review_status: str = "ok"
     review_notes: str | None = None
