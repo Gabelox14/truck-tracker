@@ -118,11 +118,30 @@ export function Badge({ children, tone = "slate" }) {
     amber: "bg-amber-100 text-amber-800",
     emerald: "bg-emerald-100 text-emerald-800",
     red: "bg-red-100 text-red-700",
+    // Pendiente de revisión: énfasis por contorno de tinta, sin sumar un color.
+    review: "bg-white text-slate-900 ring-1 ring-inset ring-slate-900",
   };
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>
       {children}
     </span>
+  );
+}
+
+export function ReviewBadge({ status }) {
+  if (status !== "needs_review") return null;
+  return <Badge tone="review">Revisar</Badge>;
+}
+
+export function ReviewNotes({ notes, className = "" }) {
+  const lines = (Array.isArray(notes) ? notes : (notes ?? "").split("\n")).filter(Boolean);
+  if (!lines.length) return null;
+  return (
+    <ul className={`space-y-0.5 text-xs text-slate-500 ${className}`}>
+      {lines.map((line) => (
+        <li key={line}>· {line}</li>
+      ))}
+    </ul>
   );
 }
 

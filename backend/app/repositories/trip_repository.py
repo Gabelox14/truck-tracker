@@ -1,8 +1,9 @@
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.time import day_end, day_start
 from app.models.trip import Trip
 
 MAX_LIMIT = 200
@@ -16,6 +17,16 @@ def list_all(
     if driver_id is not None:
         query = query.filter(Trip.driver_id == driver_id)
     return query.order_by(Trip.started_at.desc()).limit(limit).offset(offset).all()
+
+
+def list_needing_review(db: Session, limit: int = MAX_LIMIT) -> list[Trip]:
+    return (
+        db.query(Trip)
+        .filter(Trip.review_status == "needs_review")
+        .order_by(Trip.started_at.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 def get(db: Session, trip_id: str) -> Trip | None:
@@ -42,9 +53,9 @@ def list_for_export(
             or_(Trip.origin_zone_id == zone_id, Trip.destination_zone_id == zone_id)
         )
     if date_from:
-        query = query.filter(Trip.started_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
+        query = query.filter(Trip.started_at >= day_start(date_from))
     if date_to:
-        query = query.filter(Trip.started_at <= datetime.combine(date_to, time.max, tzinfo=timezone.utc))
+        query = query.filter(Trip.started_at <= day_end(date_to))
     if trip_type:
         query = query.filter(Trip.trip_type == trip_type)
     return query.order_by(Trip.started_at.desc()).all()
@@ -76,11 +87,13 @@ def complete(db: Session, trip_id: str) -> Trip | None:
     return trip
 
 
-def update_amount(db: Session, trip_id: str, amount: float) -> Trip | None:
+def update_amount(db: Session, trip_id: str, amount: float, currency: str | None = None) -> Trip | None:
     trip = db.get(Trip, trip_id)
     if trip is None:
         return None
     trip.amount = amount
+    if currency is not None:
+        trip.currency = currency
     db.commit()
     db.refresh(trip)
     return trip

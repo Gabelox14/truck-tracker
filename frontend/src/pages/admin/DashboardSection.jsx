@@ -41,7 +41,7 @@ function SubLabel({ children }) {
   return <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{children}</p>;
 }
 
-function DailyBarChart({ data }) {
+function DailyBarChart({ data, currency }) {
   if (!data.length) return <EmptyState>No hay datos para este rango.</EmptyState>;
 
   const width = 640;
@@ -65,7 +65,7 @@ function DailyBarChart({ data }) {
           {data.map((d) => (
             <tr key={d.date}>
               <td>{d.date}</td>
-              <td>{formatMoney(d.total)}</td>
+              <td>{formatMoney(d.total, currency)}</td>
             </tr>
           ))}
         </tbody>
@@ -82,11 +82,11 @@ function DailyBarChart({ data }) {
           const y = height - barHeight;
           return (
             <g key={d.date}>
-              <title>{`${d.date}: ${formatMoney(d.total)}`}</title>
+              <title>{`${d.date}: ${formatMoney(d.total, currency)}`}</title>
               <rect x={x} y={y} width={barWidth} height={Math.max(barHeight, 1)} rx="4" fill="#0f172a" />
               {i === maxIndex && d.total > 0 && (
                 <text x={x + barWidth / 2} y={y - 4} textAnchor="middle" fontSize="10" fill="#475569">
-                  {formatMoney(d.total)}
+                  {formatMoney(d.total, currency)}
                 </text>
               )}
               <text x={x + barWidth / 2} y={height + 14} textAnchor="middle" fontSize="9" fill="#94a3b8">
@@ -100,7 +100,7 @@ function DailyBarChart({ data }) {
   );
 }
 
-function TruckBarList({ data }) {
+function TruckBarList({ data, currency }) {
   if (!data.length) return <EmptyState>No hay datos para este rango.</EmptyState>;
 
   const max = Math.max(...data.map((t) => t.total), 1);
@@ -113,7 +113,7 @@ function TruckBarList({ data }) {
               {t.plate}
               {t.code ? ` · ${t.code}` : ""}
             </span>
-            <span className="shrink-0 text-slate-500">{formatMoney(t.total)}</span>
+            <span className="shrink-0 text-slate-500">{formatMoney(t.total, currency)}</span>
           </div>
           <div className="mt-1 h-2 rounded-full bg-slate-100">
             <div
@@ -131,6 +131,7 @@ export default function DashboardSection() {
   const [preset, setPreset] = useState("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [currency, setCurrency] = useState("CRC");
 
   const { dateFrom, dateTo } = useMemo(() => {
     if (preset === "custom") return { dateFrom: customFrom, dateTo: customTo };
@@ -138,13 +139,14 @@ export default function DashboardSection() {
   }, [preset, customFrom, customTo]);
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ["dashboard-stats", dateFrom, dateTo],
+    queryKey: ["dashboard-stats", dateFrom, dateTo, currency],
     queryFn: async () =>
       (
         await apiClient.get("/trips/stats/summary", {
           params: {
             ...(dateFrom ? { date_from: dateFrom } : {}),
             ...(dateTo ? { date_to: dateTo } : {}),
+            currency,
           },
         })
       ).data,
@@ -188,18 +190,42 @@ export default function DashboardSection() {
               />
             </>
           )}
+          {(stats?.totals_by_currency?.USD || currency === "USD") && (
+            <div className="ml-auto flex gap-1" role="group" aria-label="Moneda">
+              {[
+                { key: "CRC", label: "₡" },
+                { key: "USD", label: "$" },
+              ].map((c) => (
+                <Button key={c.key} variant={currency === c.key ? "primary" : "ghost"} onClick={() => setCurrency(c.key)}>
+                  {c.label}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
 
         {isLoading ? (
           <p className="mt-4 text-sm text-slate-400">Cargando...</p>
         ) : (
           <div className="mt-5 grid grid-cols-1 divide-y divide-slate-100 border-t border-slate-100 pt-4 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:pt-5">
-            <Stat label="Total generado" value={formatMoney(stats?.total_amount)} />
-            <Stat label="Cantidad de viajes" value={stats?.trip_count ?? 0} />
+            <Stat
+              label="Total generado"
+              value={formatMoney(stats?.total_amount, currency)}
+              hint={
+                stats?.totals_by_currency?.[currency === "CRC" ? "USD" : "CRC"]
+                  ? `y ${formatMoney(stats.totals_by_currency[currency === "CRC" ? "USD" : "CRC"], currency === "CRC" ? "USD" : "CRC")} en la otra moneda`
+                  : undefined
+              }
+            />
+            <Stat
+              label="Cantidad de viajes"
+              value={stats?.trip_count ?? 0}
+              hint={stats?.pending_review ? `${stats.pending_review} por revisar` : undefined}
+            />
             <Stat
               label="Camión que más generó"
               value={stats?.top_truck ? stats.top_truck.plate : "—"}
-              hint={stats?.top_truck ? formatMoney(stats.top_truck.total) : undefined}
+              hint={stats?.top_truck ? formatMoney(stats.top_truck.total, currency) : undefined}
             />
           </div>
         )}
@@ -209,13 +235,13 @@ export default function DashboardSection() {
         <Card title="Ingresos">
           <SubLabel>Por día</SubLabel>
           <div className="mt-2">
-            <DailyBarChart data={stats?.by_day ?? []} />
+            <DailyBarChart data={stats?.by_day ?? []} currency={currency} />
           </div>
 
           <div className="mt-6 border-t border-slate-100 pt-6">
             <SubLabel>Por camión</SubLabel>
             <div className="mt-3">
-              <TruckBarList data={stats?.by_truck ?? []} />
+              <TruckBarList data={stats?.by_truck ?? []} currency={currency} />
             </div>
           </div>
         </Card>

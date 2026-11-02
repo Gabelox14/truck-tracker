@@ -11,7 +11,7 @@ web
 Two internal user types for a single vehicle-transport (car-hauling) business:
 
 - **Admin / dispatcher** — manages the fleet's master data (trucks, driver accounts, named zones) and reviews trips: sets the amount charged per trip and documents the cargo (car brand + a photo of the VIN) after a driver logs a trip. Admin additionally controls user roles and zones; dispatcher handles day-to-day trucks/drivers.
-- **Driver** — uses the app from a phone while on the road. Starts a trip by picking a truck and an origin/destination zone, and marks it as arrived when done. Sees only their own trips; has no role in billing or cargo documentation.
+- **Driver** — uses the app from a phone while on the road. Starts a trip by picking a truck and an origin/destination zone, and marks it as arrived when done. Sees only their own trips. Can submit evidence for their own trips — a photo of each car's VIN and a voice note with route and cost — but never sees amounts; whatever they submit is a proposal that staff confirms.
 
 ## Product Purpose
 
@@ -32,7 +32,8 @@ Deliberately not a GPS/real-time location tracker. Trips are tracked by state (i
 - Roles: `admin` (full control, incl. zones and role assignment), `dispatcher` (trucks/drivers, same trip visibility as admin), `driver` (own trips only).
 - Entities: trucks (plate), drivers (linked 1:1 to a login), zones (admin-managed named locations), trips (driver + truck + origin/destination zone + status + amount + one or more cargo cars, each with a brand and an optional VIN photo).
 - Auth is email/password via Supabase Auth; backend verifies sessions itself (JWKS), independent of the frontend.
-- Cargo VIN photos upload to Supabase Storage from the browser; only admin/dispatcher can add or remove them and set the trip amount — the driver's role ends at logging the trip's origin, destination, and arrival.
+- Automatic capture: VIN photos and voice notes go through the backend to a private Supabase Storage bucket. Claude reads the VIN (validated by check digit and decoded with NHTSA vPIC); voice notes are transcribed and Claude extracts origin, destination, cost and currency. Anything that doesn't add up is marked "Revisar" and lands in the admin "Por revisar" tab, where staff confirm, correct, or turn unassigned uploads (drafts) into trips. Only admin/dispatcher confirm data, edit cars, and set amounts.
+- Amounts are in CRC or USD per trip; the two currencies are never summed together.
 - No live GPS tracking by design (see Positioning).
 - Driver-facing screens must hold up on a phone over inconsistent mobile connectivity.
 
@@ -47,6 +48,6 @@ None. No real trips, trucks, or driver data exist yet — everything used so far
 ## Product Principles
 
 1. Zone-based trip state, not GPS — the driver's flow must never assume a live location signal.
-2. Hard role separation: a driver cannot see or touch billing, cargo documentation, or other drivers' trips.
+2. Hard role separation: a driver cannot see billing or other drivers' trips, and can only submit evidence for their own trips — never confirm or edit it.
 3. Every trip is auditable after the fact — cargo and amount are recorded per trip, not bolted on separately.
 4. Driver surface is mobile-first and minimal; admin/dispatch surface is desktop-oriented and information-dense.

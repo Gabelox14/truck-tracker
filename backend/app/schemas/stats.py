@@ -14,6 +14,9 @@ class StatsTruckOut(BaseModel):
 
 
 class StatsSummaryOut(BaseModel):
+    currency: str = "CRC"
+    totals_by_currency: dict[str, float] = {}
+    pending_review: int = 0
     total_amount: float
     trip_count: int
     top_truck: StatsTruckOut | None = None

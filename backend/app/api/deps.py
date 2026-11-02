@@ -100,21 +100,33 @@ def require_staff_or_driver_profile(
     return db.get(Profile, user_id)
 
 
-def require_trip_access(
-    trip_id: UUID,
-    user_id: str = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-) -> Trip:
+def is_staff_user(db: Session, user_id: str) -> bool:
+    profile = db.get(Profile, user_id)
+    return profile is not None and profile.role in ("admin", "dispatcher")
+
+
+def can_access_trip(db: Session, user_id: str, trip: Trip) -> bool:
+    if is_staff_user(db, user_id):
+        return True
+    driver = db.query(Driver).filter(Driver.profile_id == user_id).first()
+    return driver is not None and driver.id == trip.driver_id
+
+
+def ensure_trip_access(db: Session, user_id: str, trip_id: UUID | str) -> Trip:
     trip = db.get(Trip, trip_id)
     if trip is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
-    profile = db.get(Profile, user_id)
-    is_staff = profile is not None and profile.role in ("admin", "dispatcher")
-    driver = db.query(Driver).filter(Driver.profile_id == user_id).first()
-    is_owner = driver is not None and driver.id == trip.driver_id
-    if not (is_staff or is_owner):
+    if not can_access_trip(db, user_id, trip):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not allowed to access this trip",
         )
     return trip
+
+
+def require_trip_access(
+    trip_id: UUID,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> Trip:
+    return ensure_trip_access(db, user_id, trip_id)

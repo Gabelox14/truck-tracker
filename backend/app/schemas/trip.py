@@ -1,9 +1,12 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.trip import TRIP_TYPES
+
+Currency = Literal["CRC", "USD"]
 
 
 class TripCreate(BaseModel):
@@ -19,7 +22,8 @@ class TripCreate(BaseModel):
 
 
 class TripAmountUpdate(BaseModel):
-    amount: float
+    amount: float = Field(ge=0)
+    currency: Currency | None = None
 
 
 class TripTypeUpdate(BaseModel):
@@ -31,6 +35,16 @@ class TripTypeUpdate(BaseModel):
         if v not in TRIP_TYPES:
             raise ValueError(f"trip_type must be one of {TRIP_TYPES}")
         return v
+
+
+class TripReviewUpdate(BaseModel):
+    """Correcciones opcionales al confirmar lo extraído de un viaje."""
+
+    amount: float | None = Field(default=None, ge=0)
+    currency: Currency | None = None
+    origin_zone_id: UUID | None = None
+    destination_zone_id: UUID | None = None
+    requested_by: str | None = None
 
 
 class TripOut(BaseModel):
@@ -45,4 +59,11 @@ class TripOut(BaseModel):
     started_at: datetime
     completed_at: datetime | None
     amount: float | None
+    currency: Currency = "CRC"
     trip_type: str | None = None
+    origin_text: str | None = None
+    destination_text: str | None = None
+    requested_by: str | None = None
+    intake_source: str = "manual"
+    review_status: str = "ok"
+    review_notes: str | None = None

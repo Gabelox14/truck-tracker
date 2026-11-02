@@ -169,7 +169,8 @@ Nearly flat. The only shadow in the system is `shadow-sm` on `Card` and the head
 
 ### Badges
 - **Style:** `rounded-full` pill, `px-2 py-0.5`, 12px medium text, no border — a flat tinted-background chip.
-- **Tones:** slate (default/role labels), amber (trip in progress), emerald (trip completed), red (reserved, currently unused by any live badge).
+- **Tones:** slate (default/role labels), amber (trip in progress), emerald (trip completed), red (reserved, currently unused by any live badge), review (white pill with a 1px Ink Slate ring and Ink Slate text: "Revisar", data waiting for staff confirmation).
+- **Why review is an outline, not a color:** "needs review" is a data-quality state, not a trip status, so it must not borrow amber/emerald/red. The outlined ink pill gets its emphasis from contrast and shape, honoring the One Ink Rule without adding a fourth semantic color.
 
 ### Cards / Containers
 - **Corner Style:** `rounded-xl` (12px).

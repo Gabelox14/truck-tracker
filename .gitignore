@@ -13,3 +13,8 @@ frontend/.env
 # General
 .DS_Store
 *.log
+
+# Datos reales de prueba (fotos, audios, VIN y nombres de clientes): nunca al repo
+testdata/
+# Entornos virtuales de Python (incluye copias viejas como venv_py310_broken)
+backend/venv*/

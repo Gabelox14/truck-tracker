@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,8 +19,8 @@ from app.models.driver import Driver
 from app.models.trip import Trip
 from app.schemas.export import FeRowOut
 from app.schemas.stats import StatsSummaryOut
-from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut, TripTypeUpdate
-from app.schemas.trip_car import TripCarCreate, TripCarOut
+from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut, TripReviewUpdate, TripTypeUpdate
+from app.schemas.trip_car import TripCarCreate, TripCarOut, TripCarUpdate
 from app.services import export_service, trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -39,10 +40,11 @@ def list_trips(
 def stats_summary(
     date_from: date | None = None,
     date_to: date | None = None,
+    currency: Literal["CRC", "USD"] = "CRC",
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    return trip_service.build_stats(db, date_from=date_from, date_to=date_to)
+    return trip_service.build_stats(db, date_from=date_from, date_to=date_to, currency=currency)
 
 
 @router.get("/export/fe/preview", response_model=list[FeRowOut])
@@ -75,19 +77,42 @@ def export_fe(
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    rows = trip_service.build_fe_rows(
+    filters = {
+        "truck_id": str(truck_id) if truck_id else None,
+        "zone_id": str(zone_id) if zone_id else None,
+        "date_from": date_from,
+        "date_to": date_to,
+        "trip_type": trip_type,
+    }
+    rows = trip_service.build_fe_rows(db, **filters)
+    buffer = export_service.build_fe_workbook(rows, trip_service.build_fe_summary(db, **filters))
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="FE.xlsx"'},
+    )
+
+
+@router.get("/export/directos")
+def export_directos(
+    truck_id: UUID | None = None,
+    zone_id: UUID | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    _admin_id: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = trip_service.build_directos_rows(
         db,
         truck_id=str(truck_id) if truck_id else None,
         zone_id=str(zone_id) if zone_id else None,
         date_from=date_from,
         date_to=date_to,
-        trip_type=trip_type,
     )
-    buffer = export_service.build_fe_workbook(rows)
     return StreamingResponse(
-        buffer,
+        export_service.build_directos_workbook(rows),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="FE.xlsx"'},
+        headers={"Content-Disposition": 'attachment; filename="VINS DIRECTOS.xlsx"'},
     )
 
 
@@ -135,7 +160,7 @@ def set_trip_amount(
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    return trip_service.update_trip_amount(db, str(trip.id), payload.amount)
+    return trip_service.update_trip_amount(db, str(trip.id), payload.amount, payload.currency)
 
 
 @router.patch("/{trip_id}/type", response_model=TripOut)
@@ -146,6 +171,22 @@ def set_trip_type(
     db: Session = Depends(get_db),
 ):
     return trip_service.update_trip_type(db, str(trip.id), payload.trip_type)
+
+
+@router.patch("/{trip_id}/review", response_model=TripOut)
+def confirm_trip_review(
+    payload: TripReviewUpdate,
+    trip: Trip = Depends(require_trip_access),
+    _staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    try:
+        return trip_service.review_trip(db, trip, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La zona indicada no existe")
 
 
 @router.get("/{trip_id}/cars", response_model=list[TripCarOut])
@@ -160,10 +201,24 @@ def list_trip_cars(
 def add_trip_car(
     payload: TripCarCreate,
     trip: Trip = Depends(require_trip_access),
+    staff_id: str = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    return trip_service.add_trip_car(db, str(trip.id), payload, staff_id)
+
+
+@router.patch("/{trip_id}/cars/{car_id}", response_model=TripCarOut)
+def update_trip_car(
+    car_id: UUID,
+    payload: TripCarUpdate,
+    trip: Trip = Depends(require_trip_access),
     _staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    return trip_service.add_trip_car(db, str(trip.id), payload.brand, payload.vin_photo_url)
+    car = trip_service.get_trip_car(db, str(trip.id), str(car_id))
+    if car is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
+    return trip_service.update_trip_car(db, car, payload)
 
 
 @router.delete("/{trip_id}/cars/{car_id}", status_code=status.HTTP_204_NO_CONTENT)

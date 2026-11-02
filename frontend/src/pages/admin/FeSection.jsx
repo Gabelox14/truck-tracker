@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { apiClient } from "../../lib/apiClient";
 import { formatMoney } from "../../lib/formatMoney";
-import { Button, Card, EmptyState, ErrorText, Select } from "../../components/ui";
+import { Badge, Button, Card, EmptyState, ErrorText, Select } from "../../components/ui";
 import { useToast } from "../../context/ToastContext";
 
 function useOptions(queryKey, path) {
@@ -54,18 +55,17 @@ export default function FeSection() {
     setTripType("");
   }
 
-  async function handleDownload() {
+  async function handleDownload(kind = "fe") {
     setError("");
-    setDownloading(true);
+    setDownloading(kind);
     try {
-      const response = await apiClient.get("/trips/export/fe", {
-        params: buildParams(filters),
-        responseType: "blob",
-      });
+      // El formato Directos solo incluye viajes directos: el filtro de tipo no aplica.
+      const params = buildParams(kind === "directos" ? { ...filters, tripType: "" } : filters);
+      const response = await apiClient.get(`/trips/export/${kind}`, { params, responseType: "blob" });
       const url = URL.createObjectURL(response.data);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "FE.xlsx";
+      link.download = kind === "directos" ? "VINS DIRECTOS.xlsx" : "FE.xlsx";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -84,8 +84,9 @@ export default function FeSection() {
     <div className="space-y-6">
       <Card title="FE">
         <p className="text-sm text-slate-500">
-          Filtrá y revisá el resumen antes de descargar el Excel: código de camión, placa,
-          destino inicial y final, monto, marca del carro y un enlace a la foto del VIN.
+          Filtrá y revisá antes de descargar el Excel: una fila por vehículo con fecha, camión, chofer,
+          marca, modelo, año, VIN y si es válido, origen, destino, monto con su moneda, estado y un enlace
+          al viaje en la app. Incluye una hoja Resumen con los totales por moneda.
         </p>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -147,8 +148,11 @@ export default function FeSection() {
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <Button onClick={handleDownload} disabled={downloading || !rows?.length}>
-            {downloading ? "Generando..." : "Descargar Excel"}
+          <Button onClick={() => handleDownload("fe")} disabled={Boolean(downloading) || !rows?.length}>
+            {downloading === "fe" ? "Generando..." : "Descargar Excel"}
+          </Button>
+          <Button variant="ghost" onClick={() => handleDownload("directos")} disabled={Boolean(downloading)}>
+            {downloading === "directos" ? "Generando..." : "Formato Directos"}
           </Button>
           {!isLoading && (
             <span className="text-xs text-slate-400">
@@ -165,47 +169,70 @@ export default function FeSection() {
         {isLoading ? (
           <p className="text-sm text-slate-400">Cargando...</p>
         ) : rows?.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+          <div className="relative overflow-x-auto">
+            <table className="w-full min-w-[960px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-2 pr-3 font-medium">Código</th>
-                  <th className="py-2 pr-3 font-medium">Placa</th>
-                  <th className="py-2 pr-3 font-medium">Destino inicial</th>
-                  <th className="py-2 pr-3 font-medium">Destino final</th>
+                  <th className="py-2 pr-3 font-medium">Fecha</th>
+                  <th className="py-2 pr-3 font-medium">Camión</th>
+                  <th className="py-2 pr-3 font-medium">Chofer</th>
+                  <th className="py-2 pr-3 font-medium">Vehículo</th>
+                  <th className="py-2 pr-3 font-medium">VIN</th>
+                  <th className="py-2 pr-3 font-medium">Ruta</th>
                   <th className="py-2 pr-3 font-medium">Tipo</th>
                   <th className="py-2 pr-3 font-medium">Monto</th>
-                  <th className="py-2 pr-3 font-medium">Marca</th>
-                  <th className="py-2 pr-3 font-medium">VIN</th>
+                  <th className="py-2 pr-3 font-medium">Estado</th>
+                  <th className="py-2 pr-3 font-medium"><span className="sr-only">Enlace</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((row, i) => (
-                  <tr key={i}>
-                    <td className="py-2 pr-3 text-slate-900">{row.truck_code || "—"}</td>
-                    <td className="py-2 pr-3 text-slate-900">{row.truck_plate || "—"}</td>
-                    <td className="py-2 pr-3 text-slate-500">{row.origin || "—"}</td>
-                    <td className="py-2 pr-3 text-slate-500">{row.destination || "—"}</td>
-                    <td className="py-2 pr-3 text-slate-500">
-                      {TRIP_TYPE_LABEL[row.trip_type] || "—"}
+                  <tr key={`${row.trip_id}-${i}`}>
+                    <td className="whitespace-nowrap py-2 pr-3 text-slate-500">
+                      {new Date(`${row.trip_date}T12:00:00`).toLocaleDateString()}
                     </td>
                     <td className="py-2 pr-3 text-slate-900">
-                      {row.amount != null ? formatMoney(row.amount) : "—"}
+                      {[row.truck_code, row.truck_plate].filter(Boolean).join(" · ") || "—"}
                     </td>
-                    <td className="py-2 pr-3 text-slate-500">{row.brand || "—"}</td>
+                    <td className="py-2 pr-3 text-slate-500">{row.driver_name || "—"}</td>
+                    <td className="py-2 pr-3 text-slate-900">
+                      {[row.brand, row.model, row.model_year].filter(Boolean).join(" ") || "—"}
+                    </td>
                     <td className="py-2 pr-3">
-                      {row.vin_photo_url ? (
-                        <a
-                          href={row.vin_photo_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-slate-600 hover:text-slate-900 hover:underline"
-                        >
-                          Ver foto
-                        </a>
+                      {row.vin ? (
+                        <>
+                          <span className="font-mono text-xs text-slate-700">{row.vin}</span>
+                          {row.vin_status !== "Sí" && (
+                            <span className="block text-xs text-slate-400">
+                              {row.vin_status === "No" ? "No es VIN de 17" : "Dígito no cuadra"}
+                            </span>
+                          )}
+                        </>
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}
+                    </td>
+                    <td className="py-2 pr-3 text-slate-500">
+                      {row.origin || "?"} → {row.destination || "?"}
+                    </td>
+                    <td className="py-2 pr-3 text-slate-500">{TRIP_TYPE_LABEL[row.trip_type] || "—"}</td>
+                    <td className="whitespace-nowrap py-2 pr-3 text-slate-900">
+                      {row.amount != null ? formatMoney(row.amount, row.currency) : "—"}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {row.review === "Por revisar" ? (
+                        <Badge tone="review">Revisar</Badge>
+                      ) : (
+                        <span className="text-xs text-slate-500">{row.status}</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <Link
+                        to={`/viajes/${row.trip_id}`}
+                        className="text-slate-600 hover:text-slate-900 hover:underline"
+                      >
+                        Abrir
+                      </Link>
                     </td>
                   </tr>
                 ))}
