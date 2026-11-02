@@ -68,6 +68,36 @@ def test_makes_match(a, b, expected):
     assert vin_service.makes_match(a, b) is expected
 
 
+@pytest.mark.parametrize(
+    ("vin", "make"),
+    [
+        ("MBHWDB3S1VG905881", "SUZUKI"),
+        ("MA3FL61SXTA573858", "SUZUKI"),
+        ("JS3JB74V7V5105885", "SUZUKI"),
+        ("MHYDN71VXVJ400814", "SUZUKI"),
+        ("LS6CME0Z3VK910288", "CHANGAN"),
+        ("LSCBBZ2GXVG802013", "CHANGAN"),
+        ("LJ11PBBC1V1301733", "JAC"),
+        ("1HGCM82633A004352", None),
+    ],
+)
+def test_make_from_wmi_with_real_fleet_vins(vin, make):
+    assert vin_service.make_from_wmi(vin) == make
+
+
+@pytest.mark.parametrize(
+    ("vin", "year"),
+    [
+        ("MBHWDB3S1VG905881", 2027),  # la etiqueta dice Año Modelo 2027; NHTSA diría 1997
+        ("MA3FL61SXTA573858", 2026),
+        ("MA3YPLCS3VK213370", 2027),
+        ("1HGCM82633A004352", 2003),
+    ],
+)
+def test_latest_model_year_picks_the_recent_cycle(vin, year):
+    assert vin_service.latest_model_year(vin, 2026) == year
+
+
 def test_display_make():
     assert vin_service.display_make("MERCEDES-BENZ") == "Mercedes-Benz"
     assert vin_service.display_make("LAND ROVER") == "Land Rover"

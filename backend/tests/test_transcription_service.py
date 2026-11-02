@@ -51,11 +51,13 @@ def test_errors_become_transcription_error():
         _transcriber(boom).transcribe(b"x", "n.ogg", "audio/ogg", "")
 
 
-def test_prompt_includes_zones_and_stays_short():
-    prompt = build_prompt(["Coyol", "Lindora", "Uruca"])
-    assert "Coyol" in prompt and "Uruca" in prompt and "rojos" in prompt
+def test_prompt_includes_zones_fleet_vocabulary_and_stays_short():
+    prompt = build_prompt(["Lindora", "Bodega Norte"])
+    assert "Lindora" in prompt and "Bodega Norte" in prompt
+    for word in ("Fronx", "Dzire", "S-Presso", "más el IVA", "rojos", "Coyol"):
+        assert word in prompt
     long_prompt = build_prompt([f"Zona número {i}" for i in range(200)])
-    assert len(long_prompt) <= 601
+    assert len(long_prompt) <= transcription_service._PROMPT_MAX_CHARS + 1
 
 
 def test_missing_key_is_reported(monkeypatch):

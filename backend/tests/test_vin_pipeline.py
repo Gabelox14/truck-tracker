@@ -113,6 +113,49 @@ def test_nhtsa_down_goes_to_review():
     assert "No se pudo consultar NHTSA para confirmar el VIN" in result.review_reasons
 
 
+UNREGISTERED = NhtsaDecodeOut(make=None, error_code="7", error_text="7 - Manufacturer is not registered with NHTSA")
+
+
+def test_fleet_vehicle_unknown_to_nhtsa_is_confirmed_by_manufacturer_table():
+    # Caso real: Suzuki Fronx hecho en India, etiqueta de Vehículos de Trabajo S.A.
+    extraction = make_extraction(vin_text="MBHWDB3S1VG905881", make="SUZUKI", model="FRONX", model_year=2027)
+    result = run(FakeExtractor(extraction), FakeNhtsa(default=UNREGISTERED))
+    assert result.wmi_make == "SUZUKI"
+    assert result.make_matches is True
+    assert result.model_year == 2027
+    assert result.review_status == "ok"
+    fields = intake_service.car_fields_from_vin_result(result)
+    assert (fields["brand"], fields["model"], fields["model_year"]) == ("Suzuki", "FRONX", 2027)
+
+
+def test_year_comes_from_the_vin_when_the_label_does_not_show_it():
+    # Placa de Maruti Suzuki (S-Presso): no trae año; la 'T' del VIN es 2026, no 1996.
+    extraction = make_extraction(vin_text="MA3FL61SXTA573858", make="SUZUKI", model="S-PRESSO")
+    result = run(FakeExtractor(extraction), FakeNhtsa(default=UNREGISTERED))
+    assert result.model_year == 2026
+    assert result.review_status == "ok"
+
+
+def test_photo_make_against_manufacturer_table():
+    extraction = make_extraction(vin_text="LS6CME0Z3VK910288", make="Suzuki")
+    result = run(FakeExtractor(extraction), FakeNhtsa(default=UNREGISTERED))
+    assert result.make_matches is False
+    assert "La marca de la foto (Suzuki) no coincide con la del VIN (CHANGAN)" in result.review_reasons
+
+
+def test_unknown_manufacturer_still_goes_to_review():
+    extraction = make_extraction(vin_text="1M8GDM9AXKP042788", make=None)
+    result = run(FakeExtractor(extraction), FakeNhtsa(default=UNREGISTERED))
+    assert result.review_status == "needs_review"
+    assert any("fabricante" in reason for reason in result.review_reasons)
+
+
+def test_label_year_that_contradicts_the_vin_is_flagged():
+    extraction = make_extraction(vin_text="MBHWDB3S1VG905881", make="SUZUKI", model_year=2019)
+    result = run(FakeExtractor(extraction), FakeNhtsa(default=UNREGISTERED))
+    assert "El año de la etiqueta (2019) no coincide con el del VIN (2027)" in result.review_reasons
+
+
 def test_low_confidence_and_bad_photo_are_flagged():
     result = run(FakeExtractor(make_extraction(confidence=0.5, image_quality="mala", vin_bbox=None)))
     assert result.review_status == "needs_review"

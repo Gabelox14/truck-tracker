@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
+from app.core.time import costa_rica_today
 from app.models.intake_file import IntakeFile
 from app.models.trip import Trip
 from app.models.trip_car import TripCar
@@ -37,7 +38,9 @@ def _review_reasons(
     extraction: VinPhotoExtraction,
     check: vin_service.VinCheck | None,
     nhtsa: NhtsaDecodeOut | None,
+    vin_make: str | None,
     make_matches: bool | None,
+    vin_year: int | None,
 ) -> list[str]:
     reasons: list[str] = []
     if check is None:
@@ -49,13 +52,16 @@ def _review_reasons(
     elif check.check_digit_ok is False:
         reasons.append("El dígito verificador no cuadra (normal en carros fuera de Norteamérica)")
 
-    if check is not None and check.is_valid:
+    # Sin marca por NHTSA ni por la tabla de fabricantes no hay con qué confirmar el VIN.
+    if check is not None and check.is_valid and vin_make is None:
         if nhtsa is None:
             reasons.append("No se pudo consultar NHTSA para confirmar el VIN")
-        elif nhtsa.make is None:
+        else:
             reasons.append(nhtsa_service.describe_problem(nhtsa))
     if make_matches is False:
-        reasons.append(f"La marca de la foto ({extraction.make}) no coincide con la del VIN ({nhtsa.make})")
+        reasons.append(f"La marca de la foto ({extraction.make}) no coincide con la del VIN ({vin_make})")
+    if extraction.model_year and vin_year and abs(extraction.model_year - vin_year) > 1:
+        reasons.append(f"El año de la etiqueta ({extraction.model_year}) no coincide con el del VIN ({vin_year})")
     if check is not None and extraction.confidence < CONFIDENCE_THRESHOLD:
         reasons.append(f"Lectura con poca seguridad ({extraction.confidence:.0%})")
     if extraction.image_quality == "mala":
@@ -101,12 +107,18 @@ def process_vin_photo(
                 check = closer_check
 
     nhtsa = decode_vin(check.normalized) if check is not None and check.is_valid else None
-    make_matches = (
-        vin_service.makes_match(extraction.make, nhtsa.make)
-        if extraction.make and nhtsa is not None and nhtsa.make
-        else None
-    )
-    reasons = _review_reasons(extraction, check, nhtsa, make_matches)
+    wmi_make = vin_service.make_from_wmi(check.normalized) if check is not None and check.is_valid else None
+    vin_make = (nhtsa.make if nhtsa is not None and nhtsa.make else None) or wmi_make
+    make_matches = vin_service.makes_match(extraction.make, vin_make) if extraction.make and vin_make else None
+    vin_year = None
+    if check is not None and check.is_valid:
+        # NHTSA resuelve bien el ciclo de 30 años solo cuando decodifica limpio;
+        # si no, se toma el ciclo más reciente (los carros que se transportan son nuevos).
+        if nhtsa is not None and nhtsa.model_year and nhtsa_service.decoded_cleanly(nhtsa):
+            vin_year = nhtsa.model_year
+        else:
+            vin_year = vin_service.latest_model_year(check.normalized, costa_rica_today().year)
+    reasons = _review_reasons(extraction, check, nhtsa, vin_make, make_matches, vin_year)
 
     return VinPhotoResult(
         vin_text=extraction.vin_text,
@@ -121,6 +133,8 @@ def process_vin_photo(
         vin_valid=check.is_valid if check is not None else False,
         check_digit_ok=check.check_digit_ok if check is not None else None,
         nhtsa=nhtsa,
+        wmi_make=wmi_make,
+        model_year=extraction.model_year or vin_year,
         make_matches=make_matches,
         review_status="needs_review" if reasons else "ok",
         review_reasons=reasons,
@@ -132,14 +146,16 @@ def car_fields_from_vin_result(result: VinPhotoResult) -> dict:
     """Marca y modelo de NHTSA solo si el VIN pasó el dígito verificador; si no,
     manda lo que se vio en la foto."""
     nhtsa = result.nhtsa
-    trust_vin = result.check_digit_ok is True and nhtsa is not None
-    nhtsa_make = vin_service.display_make(nhtsa.make) if nhtsa is not None and nhtsa.make else None
+    trust_vin = result.check_digit_ok is True
+    vin_make = (nhtsa.make if nhtsa is not None and nhtsa.make else None) or result.wmi_make
+    vin_make = vin_service.display_make(vin_make) if vin_make else None
+    photo_make = vin_service.display_make(result.make) if result.make else None
     nhtsa_model = nhtsa.model if nhtsa is not None else None
     return {
-        "brand": (nhtsa_make if trust_vin else None) or result.make or nhtsa_make,
+        "brand": (vin_make if trust_vin else None) or photo_make or vin_make,
         "make_from_photo": result.make,
         "model": (nhtsa_model if trust_vin else None) or result.model or nhtsa_model,
-        "model_year": nhtsa.model_year if nhtsa is not None else None,
+        "model_year": result.model_year,
         "color": result.color,
         "vin": result.vin,
         "vin_raw": result.vin_text,

@@ -64,6 +64,11 @@ def decode_vin(vin: str, http_client: httpx.Client | None = None) -> NhtsaDecode
     return decoded
 
 
+def decoded_cleanly(decoded: NhtsaDecodeOut) -> bool:
+    codes = {code.strip() for code in (decoded.error_code or "").split(",") if code.strip()}
+    return codes == {"0"}
+
+
 def describe_problem(decoded: NhtsaDecodeOut) -> str:
     codes = [code.strip() for code in (decoded.error_code or "").split(",") if code.strip()]
     for code in codes:

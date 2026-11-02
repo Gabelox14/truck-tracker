@@ -25,6 +25,7 @@ def make_extraction(**overrides) -> VinPhotoExtraction:
         "vin_location": "parabrisas",
         "make": "Honda",
         "model": "Accord",
+        "model_year": None,
         "color": "gris",
         "image_quality": "buena",
         "confidence": 0.95,

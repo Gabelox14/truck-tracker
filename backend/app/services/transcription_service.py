@@ -9,12 +9,16 @@ logger = logging.getLogger(__name__)
 
 # Groq limita el prompt de Whisper a 224 tokens; con este tope de caracteres
 # queda holgado en español.
-_PROMPT_MAX_CHARS = 600
+_PROMPT_MAX_CHARS = 800
+# Vocabulario de las notas reales: sin él, Whisper escribe "France" por Fronx,
+# "Espresso" por S-Presso, "Desire" por Dzire y "de Marceliva" por "más el IVA".
 _BASE_PROMPT = (
-    "Nota de voz de un chofer de grúa en Costa Rica sobre un viaje: de dónde salió, a dónde llegó, "
-    "cuánto costó en colones o dólares (rojos, tejas, mil, cien mil) y qué carros llevaba "
-    "(Toyota, Hyundai, Nissan, Kia, Mitsubishi, Suzuki, Honda). Lugares: San José, Alajuela, Heredia, "
-    "Cartago, Puntarenas, Limón, Caldera, Moín, Guanacaste, Liberia"
+    "Nota de voz de un chofer de grúa en Costa Rica: factura directa, la fecha, la unidad (M1, M2...), "
+    "los vehículos trasladados, de dónde a dónde, el monto en colones más el IVA, quién lo solicita y "
+    "si está en contrato. Vehículos: Suzuki Fronx, S-Presso, Dzire, Across, Jimny, Swift, Eeco, "
+    "Celerio, APV; Changan CS15, CS35, CS55, CS75, Deepal, Hunter, Alsvin; JAC 1035, 1042, T6. "
+    "Montos: rojos, tejas, mil, cien mil, dólares. Lugares: Coyol, La Uruca, Zapote, Heredia, "
+    "Guápiles, Pérez Zeledón, Muelle San Carlos, Caldera, Limón"
 )
 
 

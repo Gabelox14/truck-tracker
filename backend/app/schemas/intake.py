@@ -22,6 +22,8 @@ class VinBox(BaseModel):
 class VinPhotoExtraction(BaseModel):
     """Lo que Claude lee en la foto; la respuesta del modelo se valida contra este esquema."""
 
+    model_config = ConfigDict(protected_namespaces=())
+
     vin_text: str | None = Field(
         description=(
             "VIN o número de chasis tal como aparece impreso, carácter por carácter, "
@@ -34,7 +36,12 @@ class VinPhotoExtraction(BaseModel):
     make: str | None = Field(
         description="Marca del vehículo según lo que se ve (logo, calcomanía, documento). null si no se distingue."
     )
-    model: str | None = Field(description="Modelo del vehículo si se distingue. null si no.")
+    model: str | None = Field(
+        description="Modelo comercial sin versión ni equipamiento (p. ej. 'FRONX', no 'FRONX GL AT'). null si no se distingue."
+    )
+    model_year: int | None = Field(
+        description="Año modelo solo si aparece escrito en la etiqueta o el documento. null si no aparece."
+    )
     color: str | None = Field(description="Color principal en español. null si no se ve la carrocería.")
     image_quality: ImageQuality = Field(description="Calidad de la foto para leer el VIN.")
     confidence: float = Field(
@@ -66,6 +73,8 @@ class AiUsageOut(BaseModel):
 
 
 class VinPhotoResult(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     vin_text: str | None
     vin_location: VinLocation | None
     make: str | None
@@ -78,6 +87,8 @@ class VinPhotoResult(BaseModel):
     vin_valid: bool
     check_digit_ok: bool | None
     nhtsa: NhtsaDecodeOut | None
+    wmi_make: str | None = None
+    model_year: int | None = None
     make_matches: bool | None
     review_status: ReviewStatus
     review_reasons: list[str]

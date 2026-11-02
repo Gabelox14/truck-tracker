@@ -18,6 +18,28 @@ _WEIGHTS = (8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2)
 # casi siempre son un 1 o un 0 mal leídos.
 _LOOKALIKES = str.maketrans({"O": "0", "Q": "0", "I": "1"})
 
+# Prefijo de fabricante (WMI, posiciones 1-3) → marca, para la flota que se
+# transporta. NHTSA no conoce a estos fabricantes (son vehículos que no se venden
+# en EE. UU.), así que la marca se confirma con esta tabla. Sale de los VIN reales
+# del registro de viajes directos.
+WMI_MAKES = {
+    "MA3": "SUZUKI",  # Maruti Suzuki, India
+    "MBH": "SUZUKI",  # Suzuki, India
+    "MHY": "SUZUKI",  # Suzuki, Indonesia
+    "JS1": "SUZUKI",
+    "JS2": "SUZUKI",
+    "JS3": "SUZUKI",
+    "JS4": "SUZUKI",
+    "LS4": "CHANGAN",
+    "LS5": "CHANGAN",
+    "LS6": "CHANGAN",
+    "LSC": "CHANGAN",
+    "LJ1": "JAC",
+}
+
+# Código de año (posición 10): se repite cada 30 años (A = 1980 y 2010, V = 1997 y 2027).
+_YEAR_CODES = "ABCDEFGHJKLMNPRSTVWXY123456789"
+
 _MAKE_ALIASES = {
     "VW": "VOLKSWAGEN",
     "CHEVY": "CHEVROLET",
@@ -56,6 +78,20 @@ def analyze(raw: str) -> VinCheck:
     is_valid = VIN_PATTERN.match(normalized) is not None
     check_digit_ok = normalized[8] == compute_check_digit(normalized) if is_valid else None
     return VinCheck(raw=raw, normalized=normalized, is_valid=is_valid, check_digit_ok=check_digit_ok)
+
+
+def make_from_wmi(vin: str) -> str | None:
+    return WMI_MAKES.get(vin[:3])
+
+
+def latest_model_year(vin: str, current_year: int) -> int | None:
+    """Año del VIN tomando el ciclo de 30 años más reciente que no pase del año
+    siguiente: para carros nuevos, 'V' es 2027 y no 1997."""
+    if len(vin) < 10 or vin[9] not in _YEAR_CODES:
+        return None
+    first = 1980 + _YEAR_CODES.index(vin[9])
+    candidates = [first + 30 * cycle for cycle in range(3) if first + 30 * cycle <= current_year + 1]
+    return max(candidates) if candidates else None
 
 
 def normalize_make(make: str) -> str:
