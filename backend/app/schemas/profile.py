@@ -16,6 +16,9 @@ class ProfileOut(BaseModel):
     role: str
     created_at: datetime
     is_assigned: bool = False
+    # Camión asignado, si es chofer activo.
+    truck_id: UUID | None = None
+    truck_plate: str | None = None
 
 
 class ProfileRoleUpdate(BaseModel):

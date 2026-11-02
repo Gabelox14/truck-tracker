@@ -6,11 +6,14 @@ import { IntakeUpload } from "../components/IntakeUpload";
 import { Badge, Button, Card, EmptyState, ErrorText, Select } from "../components/ui";
 import { apiClient } from "../lib/apiClient";
 import { Layout } from "../components/Layout";
+import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 
 export default function DriverPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { profile } = useAuth();
+  const assignedTruck = Boolean(profile?.truck_id);
   const [truckId, setTruckId] = useState("");
   const [originZoneId, setOriginZoneId] = useState("");
   const [destinationZoneId, setDestinationZoneId] = useState("");
@@ -107,28 +110,35 @@ export default function DriverPage() {
                 }
                 setError("");
                 startTrip.mutate({
-                  truck_id: truckId,
+                  // Con camión asignado el backend usa ese.
+                  truck_id: assignedTruck ? profile.truck_id : truckId,
                   origin_zone_id: originZoneId,
                   destination_zone_id: destinationZoneId,
                 });
               }}
               className="space-y-3"
             >
-              <Select
-                value={truckId}
-                onChange={(e) => setTruckId(e.target.value)}
-                aria-label="Camión"
-                required
-              >
-                <option value="" disabled>
-                  Camión
-                </option>
-                {trucks?.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.plate}
+              {assignedTruck ? (
+                <p className="text-sm text-slate-500">
+                  Camión: <span className="font-medium text-slate-900">{profile.truck_plate}</span>
+                </p>
+              ) : (
+                <Select
+                  value={truckId}
+                  onChange={(e) => setTruckId(e.target.value)}
+                  aria-label="Camión"
+                  required
+                >
+                  <option value="" disabled>
+                    Camión
                   </option>
-                ))}
-              </Select>
+                  {trucks?.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.plate}
+                    </option>
+                  ))}
+                </Select>
+              )}
               <Select
                 value={originZoneId}
                 onChange={(e) => setOriginZoneId(e.target.value)}

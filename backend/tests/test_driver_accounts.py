@@ -52,8 +52,23 @@ def auth(api):
     return fake
 
 
-def create(api, full_name="Carlos", **payload):
-    return api.as_user(api.fleet.admin_id).client.post("/drivers/accounts", json={"full_name": full_name, **payload})
+def new_truck(api, code=None):
+    from app.models import Truck
+
+    truck = Truck(plate=f"T-{uuid.uuid4().hex[:6]}", code=code)
+    api.db.add(truck)
+    api.db.flush()
+    return truck
+
+
+def create(api, full_name="Carlos", truck=None, driver_type="fijo", **payload):
+    body = {
+        "full_name": full_name,
+        "truck_id": str((truck or new_truck(api)).id),
+        "driver_type": driver_type,
+        **payload,
+    }
+    return api.as_user(api.fleet.admin_id).client.post("/drivers/accounts", json=body)
 
 
 def user_of(auth, username):
@@ -206,6 +221,76 @@ def test_delete_with_trips_is_refused(api, auth):
     api.db.flush()
     assert api.as_user(fleet.admin_id).client.delete(f"/drivers/{driver_id}").status_code == 409
     assert len(auth.users) == 1
+
+
+def test_truck_and_type_are_required(api, auth):
+    client = api.as_user(api.fleet.admin_id).client
+    truck = new_truck(api)
+    assert client.post("/drivers/accounts", json={"full_name": "Sin Camion", "driver_type": "fijo"}).status_code == 422
+    bad_type = create(api, truck=truck, driver_type="jefe")
+    assert bad_type.status_code == 422 and "tipo" in bad_type.json()["detail"]
+    missing = client.post(
+        "/drivers/accounts", json={"full_name": "X", "truck_id": str(uuid.uuid4()), "driver_type": "fijo"}
+    )
+    assert missing.status_code == 422
+    assert auth.users == {}  # no se crea la cuenta si la asignación no sirve
+
+
+def test_one_active_driver_per_truck(api, auth):
+    truck = new_truck(api, code="M01")
+    carlos = create(api, "Carlos", truck=truck).json()["driver"]
+    taken = create(api, "Martin", truck=truck)
+    assert taken.status_code == 409
+    assert "M01" in taken.json()["detail"] and "Carlos" in taken.json()["detail"]
+    assert len(auth.users) == 1
+
+    client = api.as_user(api.fleet.admin_id).client
+    other = create(api, "Martin", driver_type="suplente").json()["driver"]
+    # Pasarle el camión a otro chofer activo: no, hasta desactivar al que lo tiene.
+    assert client.patch(f"/drivers/{other['id']}", json={"truck_id": str(truck.id)}).status_code == 409
+    assert client.patch(f"/drivers/{carlos['id']}", json={"active": False}).status_code == 200
+    moved = client.patch(f"/drivers/{other['id']}", json={"truck_id": str(truck.id)})
+    assert moved.status_code == 200 and moved.json()["truck_id"] == str(truck.id)
+
+    # Carlos no puede volver con un camión ocupado; sí con uno libre.
+    assert client.patch(f"/drivers/{carlos['id']}", json={"active": True}).status_code == 409
+    free = new_truck(api)
+    back = client.patch(f"/drivers/{carlos['id']}", json={"active": True, "truck_id": str(free.id)})
+    assert back.status_code == 200, back.text
+    assert user_of(auth, "carlos")["banned"] is False
+
+
+def test_driver_type_only_for_admin(api, auth):
+    driver = create(api, driver_type="tercero").json()["driver"]
+    assert driver["driver_type"] == "tercero"
+    api.db.get(Profile, api.fleet.admin_id).role = "dispatcher"
+    api.db.flush()
+    client = api.as_user(api.fleet.admin_id).client
+    listed = {d["id"]: d for d in client.get("/drivers").json()}
+    assert listed[driver["id"]]["driver_type"] is None and listed[driver["id"]]["truck_id"] == driver["truck_id"]
+    assert client.patch(f"/drivers/{driver['id']}", json={"driver_type": "fijo"}).status_code == 403
+    # Despacho sí puede desactivarlo.
+    assert client.patch(f"/drivers/{driver['id']}", json={"active": False}).status_code == 200
+
+
+def test_driver_trips_use_the_assigned_truck(api, auth):
+    truck = new_truck(api)
+    created = create(api, truck=truck).json()
+    user_id = next(iter(auth.users))
+    me = api.as_user(user_id).client.post("/profiles/me").json()
+    assert (me["truck_id"], me["truck_plate"]) == (str(truck.id), truck.plate)
+
+    fleet = api.fleet
+    trip = api.as_user(user_id).client.post(
+        "/trips",
+        json={
+            "truck_id": str(fleet.truck.id),  # se ignora: sale en su camión
+            "origin_zone_id": str(fleet.origin.id),
+            "destination_zone_id": str(fleet.destination.id),
+        },
+    )
+    assert trip.status_code == 201, trip.text
+    assert trip.json()["truck_id"] == str(truck.id) == created["driver"]["truck_id"]
 
 
 def test_existing_profile_loads_without_signup_metadata(api):

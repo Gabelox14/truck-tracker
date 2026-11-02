@@ -122,11 +122,17 @@ def start_trip(
     driver: Driver = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
+    truck_id = driver.truck_id or payload.truck_id
+    if truck_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No tienes camión asignado; pídele al admin que te asigne uno",
+        )
     try:
         return trip_service.create_trip(
             db,
             str(driver.id),
-            str(payload.truck_id),
+            str(truck_id),
             str(payload.origin_zone_id),
             str(payload.destination_zone_id),
         )

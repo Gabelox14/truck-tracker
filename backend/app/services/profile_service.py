@@ -2,21 +2,23 @@ from sqlalchemy.orm import Session
 
 from app.models.driver import Driver
 from app.models.profile import Profile
+from app.models.truck import Truck
 from app.repositories import profile_repository
 
 DEFAULT_ROLE = "driver"
 
 
 def attach_is_assigned(db: Session, profile: Profile) -> Profile:
+    profile.truck_id = profile.truck_plate = None
     if profile.role in ("admin", "dispatcher"):
         profile.is_assigned = True
-    else:
-        profile.is_assigned = (
-            db.query(Driver)
-            .filter(Driver.profile_id == profile.id, Driver.active.is_(True))
-            .first()
-            is not None
-        )
+        return profile
+    driver = db.query(Driver).filter(Driver.profile_id == profile.id, Driver.active.is_(True)).first()
+    profile.is_assigned = driver is not None
+    if driver is not None and driver.truck_id is not None:
+        # El chofer ve su camión por placa (el código interno es solo del admin).
+        truck = db.get(Truck, driver.truck_id)
+        profile.truck_id, profile.truck_plate = truck.id, truck.plate
     return profile
 
 

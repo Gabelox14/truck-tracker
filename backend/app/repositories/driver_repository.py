@@ -20,8 +20,8 @@ def get(db: Session, driver_id: str) -> Driver | None:
     return db.get(Driver, driver_id)
 
 
-def create(db: Session, profile_id: str, full_name: str) -> Driver:
-    driver = Driver(profile_id=profile_id, full_name=full_name)
+def create(db: Session, profile_id: str, full_name: str, truck_id=None, driver_type: str | None = None) -> Driver:
+    driver = Driver(profile_id=profile_id, full_name=full_name, truck_id=truck_id, driver_type=driver_type)
     db.add(driver)
     db.commit()
     db.refresh(driver)

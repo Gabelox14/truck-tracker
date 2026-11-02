@@ -10,7 +10,8 @@ Currency = Literal["CRC", "USD"]
 
 
 class TripCreate(BaseModel):
-    truck_id: UUID
+    # El chofer con camión asignado sale siempre en ese camión; se ignora este campo.
+    truck_id: UUID | None = None
     origin_zone_id: UUID
     destination_zone_id: UUID
 

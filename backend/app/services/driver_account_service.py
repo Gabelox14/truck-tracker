@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.models.driver import Driver
 from app.models.profile import Profile
 from app.models.trip import Trip
+from app.services import driver_service
 from app.services.auth_admin_service import AuthUserExists, SupabaseAuthAdmin
 from app.services.text_utils import strip_accents
 
@@ -65,10 +66,20 @@ def attach_usernames(db: Session, drivers: list[Driver]) -> list[Driver]:
     return drivers
 
 
-def create_account(db: Session, auth: SupabaseAuthAdmin, full_name: str, cedula: str | None = None) -> tuple[Driver, str]:
+def create_account(
+    db: Session,
+    auth: SupabaseAuthAdmin,
+    full_name: str,
+    truck_id,
+    driver_type: str,
+    cedula: str | None = None,
+) -> tuple[Driver, str]:
     full_name = " ".join(full_name.split())
     if not full_name:
         raise DriverAccountError("Falta el nombre del chofer")
+    # Antes de crear la cuenta en Supabase, para no dejarla huérfana.
+    driver_service.check_driver_type(driver_type)
+    driver_service.check_truck_free(db, truck_id)
     cedula = cedula.strip() if cedula and cedula.strip() else None
     if cedula and db.query(Profile.id).filter(Profile.cedula == cedula).first() is not None:
         raise DriverAccountError("Esa cédula ya está registrada")
@@ -90,7 +101,7 @@ def create_account(db: Session, auth: SupabaseAuthAdmin, full_name: str, cedula:
     try:
         db.add(Profile(id=uuid.UUID(user_id), email=email_for(username), full_name=full_name, cedula=cedula, role="driver"))
         db.flush()
-        driver = Driver(profile_id=uuid.UUID(user_id), full_name=full_name)
+        driver = Driver(profile_id=uuid.UUID(user_id), full_name=full_name, truck_id=truck_id, driver_type=driver_type)
         db.add(driver)
         db.commit()
     except Exception:
