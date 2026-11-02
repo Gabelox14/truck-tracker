@@ -1,8 +1,9 @@
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.time import day_end, day_start
 from app.models.trip import Trip
 
 MAX_LIMIT = 200
@@ -52,9 +53,9 @@ def list_for_export(
             or_(Trip.origin_zone_id == zone_id, Trip.destination_zone_id == zone_id)
         )
     if date_from:
-        query = query.filter(Trip.started_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
+        query = query.filter(Trip.started_at >= day_start(date_from))
     if date_to:
-        query = query.filter(Trip.started_at <= datetime.combine(date_to, time.max, tzinfo=timezone.utc))
+        query = query.filter(Trip.started_at <= day_end(date_to))
     if trip_type:
         query = query.filter(Trip.trip_type == trip_type)
     return query.order_by(Trip.started_at.desc()).all()

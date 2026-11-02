@@ -77,15 +77,15 @@ def export_fe(
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    rows = trip_service.build_fe_rows(
-        db,
-        truck_id=str(truck_id) if truck_id else None,
-        zone_id=str(zone_id) if zone_id else None,
-        date_from=date_from,
-        date_to=date_to,
-        trip_type=trip_type,
-    )
-    buffer = export_service.build_fe_workbook(rows)
+    filters = {
+        "truck_id": str(truck_id) if truck_id else None,
+        "zone_id": str(zone_id) if zone_id else None,
+        "date_from": date_from,
+        "date_to": date_to,
+        "trip_type": trip_type,
+    }
+    rows = trip_service.build_fe_rows(db, **filters)
+    buffer = export_service.build_fe_workbook(rows, trip_service.build_fe_summary(db, **filters))
     return StreamingResponse(
         buffer,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

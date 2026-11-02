@@ -1,10 +1,11 @@
 import hashlib
 import re
 import unicodedata
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.core.time import costa_rica_today
 from app.models.intake_file import IntakeFile
 from app.models.trip import Trip
 from app.models.trip_car import TripCar
@@ -25,11 +26,6 @@ from app.services.storage_service import SupabaseStorage, object_path
 from app.services.transcription_service import Transcriber, TranscriptionError, build_prompt
 
 CONFIDENCE_THRESHOLD = 0.7
-COSTA_RICA_TZ = timezone(timedelta(hours=-6))
-
-
-def costa_rica_today() -> date:
-    return datetime.now(COSTA_RICA_TZ).date()
 
 
 def _fold(text: str) -> str:

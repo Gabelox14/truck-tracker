@@ -2,12 +2,12 @@ from datetime import datetime, time
 
 from sqlalchemy.orm import Session
 
+from app.core.time import COSTA_RICA_TZ
 from app.models.intake_file import IntakeFile
 from app.models.trip import Trip
 from app.repositories import intake_file_repository, trip_car_repository, trip_repository
 from app.schemas.intake import DraftTripCreate
 from app.services import audio_intake_service, intake_service
-from app.services.audio_intake_service import COSTA_RICA_TZ
 from app.services.storage_service import SupabaseStorage
 
 

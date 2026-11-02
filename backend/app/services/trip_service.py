@@ -1,5 +1,8 @@
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.time import local_date
+
 from app.models.driver import Driver
 from app.models.profile import Profile
 from app.models.trip import Trip
@@ -100,6 +103,35 @@ def list_trips_for_user(db: Session, user_id: str, limit: int = 50, offset: int 
     return trip_repository.list_all(db, driver_id=str(driver.id), limit=limit, offset=offset)
 
 
+STATUS_LABEL = {"in_progress": "En curso", "completed": "Completado"}
+
+
+def _vin_label(car: TripCar | None) -> str | None:
+    if car is None or not car.vin:
+        return None
+    if not car.vin_valid:
+        return "No"
+    return "Sí" if car.check_digit_ok else "Dígito no cuadra"
+
+
+def _review_label(trip: Trip, car: TripCar | None) -> str:
+    statuses = {trip.review_status, car.review_status if car else "ok"}
+    if "needs_review" in statuses:
+        return "Por revisar"
+    return "Confirmado" if "confirmed" in statuses else "OK"
+
+
+def _export_trips(db: Session, truck_id, zone_id, date_from, date_to, trip_type) -> list[Trip]:
+    return trip_repository.list_for_export(
+        db,
+        truck_id=truck_id,
+        zone_id=zone_id,
+        date_from=date_from,
+        date_to=date_to,
+        trip_type=trip_type,
+    )
+
+
 def build_fe_rows(
     db: Session,
     truck_id: str | None = None,
@@ -108,37 +140,83 @@ def build_fe_rows(
     date_to=None,
     trip_type: str | None = None,
 ) -> list[dict]:
-    trips = trip_repository.list_for_export(
-        db,
-        truck_id=truck_id,
-        zone_id=zone_id,
-        date_from=date_from,
-        date_to=date_to,
-        trip_type=trip_type,
-    )
+    """Una fila por vehículo (o una por viaje si no lleva). El monto es del
+    viaje, así que se repite en cada vehículo; el resumen lo cuenta una vez."""
+    trips = _export_trips(db, truck_id, zone_id, date_from, date_to, trip_type)
     trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
     zones = {z.id: z for z in zone_repository.list_all(db, limit=200)}
+    drivers = {d.id: d for d in db.query(Driver).all()}
+    base_url = settings.resolved_app_base_url
 
     rows = []
     for trip in trips:
         truck = trucks.get(trip.truck_id)
         zone_origin = zones.get(trip.origin_zone_id)
         zone_destination = zones.get(trip.destination_zone_id)
+        driver = drivers.get(trip.driver_id)
         base = {
+            "trip_id": trip.id,
+            "trip_date": local_date(trip.started_at),
             "truck_code": truck.code if truck else None,
             "truck_plate": truck.plate if truck else None,
+            "driver_name": driver.full_name if driver else None,
             "origin": zone_origin.name if zone_origin else None,
             "destination": zone_destination.name if zone_destination else None,
             "amount": trip.amount,
+            "currency": trip.currency,
             "trip_type": trip.trip_type,
+            "status": STATUS_LABEL.get(trip.status, trip.status),
+            "link": f"{base_url}/viajes/{trip.id}",
         }
-        cars = trip_car_repository.list_for_trip(db, str(trip.id))
-        if cars:
-            for car in cars:
-                rows.append({**base, "brand": car.brand, "has_photo": car.photo_file_id is not None})
-        else:
-            rows.append({**base, "brand": None, "has_photo": False})
+        cars = trip_car_repository.list_for_trip(db, str(trip.id)) or [None]
+        for car in cars:
+            rows.append(
+                {
+                    **base,
+                    "brand": (car.brand or car.make_from_photo) if car else None,
+                    "model": car.model if car else None,
+                    "model_year": car.model_year if car else None,
+                    "vin": car.vin if car else None,
+                    "vin_status": _vin_label(car),
+                    "review": _review_label(trip, car),
+                    "has_photo": bool(car and car.photo_file_id),
+                }
+            )
     return rows
+
+
+def build_fe_summary(
+    db: Session,
+    truck_id: str | None = None,
+    zone_id: str | None = None,
+    date_from=None,
+    date_to=None,
+    trip_type: str | None = None,
+) -> dict:
+    trips = _export_trips(db, truck_id, zone_id, date_from, date_to, trip_type)
+    totals: dict[str, dict] = {}
+    vehicle_count = vehicles_needing_review = 0
+    for trip in trips:
+        if trip.amount is not None:
+            entry = totals.setdefault(trip.currency, {"currency": trip.currency, "trips": 0, "total": 0.0})
+            entry["trips"] += 1
+            entry["total"] += float(trip.amount)
+        cars = trip_car_repository.list_for_trip(db, str(trip.id))
+        vehicle_count += len(cars)
+        vehicles_needing_review += sum(1 for car in cars if car.review_status == "needs_review")
+    return {
+        "date_from": date_from,
+        "date_to": date_to,
+        "trip_count": len(trips),
+        "vehicle_count": vehicle_count,
+        "totals": [
+            {**entry, "total": round(entry["total"], 2)}
+            for entry in sorted(totals.values(), key=lambda e: e["currency"])
+        ],
+        "trips_without_amount": sum(1 for trip in trips if trip.amount is None),
+        "trips_needing_review": sum(1 for trip in trips if trip.review_status == "needs_review"),
+        "vehicles_needing_review": vehicles_needing_review,
+    }
 
 
 def build_stats(db: Session, date_from=None, date_to=None, currency: str = "CRC") -> dict:
@@ -162,7 +240,7 @@ def build_stats(db: Session, date_from=None, date_to=None, currency: str = "CRC"
         amount = float(trip.amount) if trip.amount is not None else 0.0
         total_amount += amount
 
-        day_key = trip.started_at.date().isoformat()
+        day_key = local_date(trip.started_at).isoformat()
         by_day[day_key] = by_day.get(day_key, 0.0) + amount
 
         truck_key = str(trip.truck_id)

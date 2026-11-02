@@ -15,6 +15,8 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+      - key: APP_BASE_URL
+        sync: false
       - key: ENVIRONMENT
         value: production
       - key: ANTHROPIC_API_KEY

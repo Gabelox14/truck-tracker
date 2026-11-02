@@ -50,6 +50,7 @@ Van en `backend/.env` y en Render; nunca en el frontend ni en variables `VITE_`.
 |---|---|---|
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` | Sí | Supabase (Auth, Storage, Postgres) |
 | `CORS_ORIGINS` | Sí en producción | Orígenes del frontend, separados por coma |
+| `APP_BASE_URL` | Recomendada en producción | URL pública del frontend para los enlaces del Excel (sin ella se usa el primer origen de `CORS_ORIGINS`) |
 | `ANTHROPIC_API_KEY` | Para la captura | Llave de la API de Claude; sin ella `/intake` responde 503 |
 | `ANTHROPIC_MODEL` | No (`claude-sonnet-5-5`) | Cambiar a `claude-haiku-5-5` para comparar costo |
 | `ANTHROPIC_EFFORT` | No (`low`) | `low`, `medium`, `high`, `xhigh` o `max` |

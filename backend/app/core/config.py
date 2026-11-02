@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     database_url: str
     environment: str = "development"
     cors_origins: str = "http://localhost:5173"
+    # URL pública del frontend, para los enlaces del Excel. Sin definir, se usa
+    # el primer origen de CORS_ORIGINS.
+    app_base_url: str | None = None
 
     # Claude (vision + extracción). Sin llave, los endpoints de /intake responden 503.
     anthropic_api_key: str | None = None
@@ -32,6 +35,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]
+
+    @property
+    def resolved_app_base_url(self) -> str:
+        return (self.app_base_url or self.cors_origins_list[0]).rstrip("/")
 
 
 settings = Settings()
