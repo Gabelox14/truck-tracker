@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { apiClient } from "../lib/apiClient";
+import { formatMoney } from "../lib/formatMoney";
 import { openIntakeFile } from "../lib/intake";
 import { useToast } from "../context/ToastContext";
-import { Button, ErrorText, Input, ReviewBadge, ReviewNotes } from "./ui";
+import { Badge, Button, ErrorText, Input, ReviewBadge, ReviewNotes, Select } from "./ui";
 
 function RemoveCarButton({ onConfirm, pending }) {
   const [confirming, setConfirming] = useState(false);
@@ -59,20 +60,37 @@ function CarFields({ values, onChange }) {
       <Input placeholder="VIN" aria-label="VIN" className="font-mono sm:col-span-2" {...field("vin")} />
       <Input placeholder="Modelo" aria-label="Modelo" {...field("model")} />
       <Input placeholder="Año" aria-label="Año" type="number" min="1900" max="2100" {...field("model_year")} />
+      <Select aria-label="Clase de vehículo" {...field("vehicle_class")}>
+        <option value="">Clase según el modelo</option>
+        <option value="liviano">Liviano</option>
+        <option value="carga">Carga</option>
+      </Select>
+      <Input
+        placeholder="Monto (vacío = tarifa)"
+        aria-label="Monto del vehículo"
+        type="number"
+        min="0"
+        step="500"
+        className="sm:col-span-2"
+        {...field("amount")}
+      />
     </div>
   );
 }
 
 function toPayload(values) {
-  return {
+  const payload = {
     brand: values.brand?.trim() || null,
     vin: values.vin?.trim() || null,
     model: values.model?.trim() || null,
     model_year: values.model_year ? Number(values.model_year) : null,
   };
+  if (values.vehicle_class) payload.vehicle_class = values.vehicle_class;
+  if (values.amount !== undefined && values.amount !== "") payload.amount = Number(values.amount);
+  return payload;
 }
 
-function CarRow({ car, tripId, canEdit, canDelete, onRemove, removing }) {
+function CarRow({ car, tripId, currency, canEdit, canDelete, onRemove, removing }) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
@@ -83,6 +101,8 @@ function CarRow({ car, tripId, canEdit, canDelete, onRemove, removing }) {
     onSuccess: (_data, payload) => {
       queryClient.invalidateQueries({ queryKey: ["trip-cars", tripId] });
       queryClient.invalidateQueries({ queryKey: ["review-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
       setEditing(false);
       showToast(payload.review_status === "confirmed" ? "Carro confirmado" : "Carro corregido");
     },
@@ -103,8 +123,14 @@ function CarRow({ car, tripId, canEdit, canDelete, onRemove, removing }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-slate-900">{vehicle || "Vehículo sin marca"}</span>
             {car.color && <span className="text-xs text-slate-400">{car.color}</span>}
+            {car.vehicle_class === "carga" && <Badge>Carga</Badge>}
             <ReviewBadge status={car.review_status} />
           </div>
+          {canEdit && (
+            <p className="text-xs text-slate-500">
+              {car.amount != null ? formatMoney(car.amount, currency) : "Sin monto (la ruta no tiene tarifa)"}
+            </p>
+          )}
           {car.vin && (
             <p className="break-all font-mono text-xs text-slate-600">
               {car.vin}
@@ -133,7 +159,14 @@ function CarRow({ car, tripId, canEdit, canDelete, onRemove, removing }) {
             <button
               type="button"
               onClick={() => {
-                setValues({ brand: car.brand ?? car.make_from_photo ?? "", vin: car.vin ?? "", model: car.model ?? "", model_year: car.model_year ?? "" });
+                setValues({
+                  brand: car.brand ?? car.make_from_photo ?? "",
+                  vin: car.vin ?? "",
+                  model: car.model ?? "",
+                  model_year: car.model_year ?? "",
+                  vehicle_class: car.vehicle_class ?? "",
+                  amount: car.amount ?? "",
+                });
                 setEditing((v) => !v);
               }}
               className="text-slate-600 hover:text-slate-900 hover:underline"
@@ -162,7 +195,7 @@ function CarRow({ car, tripId, canEdit, canDelete, onRemove, removing }) {
   );
 }
 
-export function TripCarsPanel({ tripId, canAdd = false, canDelete = false, canEdit = false }) {
+export function TripCarsPanel({ tripId, currency = "CRC", canAdd = false, canDelete = false, canEdit = false }) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [values, setValues] = useState({});
@@ -177,6 +210,8 @@ export function TripCarsPanel({ tripId, canAdd = false, canDelete = false, canEd
     mutationFn: async (payload) => (await apiClient.post(`/trips/${tripId}/cars`, payload)).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip-cars", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
       setValues({});
       setError("");
       showToast("Carro agregado");
@@ -189,6 +224,8 @@ export function TripCarsPanel({ tripId, canAdd = false, canDelete = false, canEd
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip-cars", tripId] });
       queryClient.invalidateQueries({ queryKey: ["review-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
       showToast("Carro quitado");
     },
     onError: (err) => showToast(err.response?.data?.detail ?? "No se pudo quitar el carro", "error"),
@@ -205,6 +242,7 @@ export function TripCarsPanel({ tripId, canAdd = false, canDelete = false, canEd
               key={car.id}
               car={car}
               tripId={tripId}
+              currency={currency}
               canEdit={canEdit}
               canDelete={canDelete}
               onRemove={(carId) => removeCar.mutate(carId)}

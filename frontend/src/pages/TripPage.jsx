@@ -47,6 +47,7 @@ function ReviewEditor({ trip, zones }) {
       destination_zone_id: trip.destination_zone_id,
       amount: trip.amount ?? "",
       currency: trip.currency,
+      requested_by: trip.requested_by ?? "",
     });
     setCorrecting(true);
   }
@@ -74,6 +75,7 @@ function ReviewEditor({ trip, zones }) {
               destination_zone_id: values.destination_zone_id,
               amount: values.amount === "" ? null : Number(values.amount),
               currency: values.currency,
+              requested_by: values.requested_by.trim() || null,
             });
           }}
           className="grid grid-cols-1 gap-2 sm:grid-cols-2"
@@ -100,6 +102,13 @@ function ReviewEditor({ trip, zones }) {
               </option>
             ))}
           </Select>
+          <Input
+            placeholder="Solicitado por"
+            aria-label="Solicitado por"
+            value={values.requested_by}
+            onChange={set("requested_by")}
+            className="sm:col-span-2"
+          />
           <div className="sm:col-span-2">
             <Button type="submit" disabled={confirm.isPending}>
               Guardar y confirmar
@@ -228,9 +237,11 @@ export default function TripPage() {
               {trip.completed_at && ` · Llegó ${new Date(trip.completed_at).toLocaleString()}`}
               {` · ${SOURCE_LABEL[trip.intake_source] ?? ""}`}
             </p>
+            {trip.requested_by && <p className="text-sm text-slate-600">Solicitado por {trip.requested_by}</p>}
             {isStaff && (
               <p className="text-sm text-slate-900">
                 {trip.amount != null ? formatMoney(trip.amount, trip.currency) : <span className="text-slate-400">Sin monto</span>}
+                {trip.trip_type === "directo" && <span className="text-xs text-slate-400"> · directo, suma de los vehículos</span>}
               </p>
             )}
             {trip.review_status === "needs_review" && <ReviewNotes notes={trip.review_notes} className="pt-1" />}
@@ -243,8 +254,14 @@ export default function TripPage() {
         </Card>
 
         <Card>
-          <IntakeUpload tripId={trip.id} />
-          <TripCarsPanel tripId={trip.id} canAdd={isStaff} canDelete={isStaff} canEdit={isStaff} />
+          <IntakeUpload tripId={trip.id} showAmounts={isStaff} />
+          <TripCarsPanel
+            tripId={trip.id}
+            currency={trip.currency}
+            canAdd={isStaff}
+            canDelete={isStaff}
+            canEdit={isStaff}
+          />
         </Card>
 
         <Card title="Notas de voz">

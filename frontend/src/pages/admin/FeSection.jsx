@@ -55,18 +55,17 @@ export default function FeSection() {
     setTripType("");
   }
 
-  async function handleDownload() {
+  async function handleDownload(kind = "fe") {
     setError("");
-    setDownloading(true);
+    setDownloading(kind);
     try {
-      const response = await apiClient.get("/trips/export/fe", {
-        params: buildParams(filters),
-        responseType: "blob",
-      });
+      // El formato Directos solo incluye viajes directos: el filtro de tipo no aplica.
+      const params = buildParams(kind === "directos" ? { ...filters, tripType: "" } : filters);
+      const response = await apiClient.get(`/trips/export/${kind}`, { params, responseType: "blob" });
       const url = URL.createObjectURL(response.data);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "FE.xlsx";
+      link.download = kind === "directos" ? "VINS DIRECTOS.xlsx" : "FE.xlsx";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -149,8 +148,11 @@ export default function FeSection() {
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <Button onClick={handleDownload} disabled={downloading || !rows?.length}>
-            {downloading ? "Generando..." : "Descargar Excel"}
+          <Button onClick={() => handleDownload("fe")} disabled={Boolean(downloading) || !rows?.length}>
+            {downloading === "fe" ? "Generando..." : "Descargar Excel"}
+          </Button>
+          <Button variant="ghost" onClick={() => handleDownload("directos")} disabled={Boolean(downloading)}>
+            {downloading === "directos" ? "Generando..." : "Formato Directos"}
           </Button>
           {!isLoading && (
             <span className="text-xs text-slate-400">

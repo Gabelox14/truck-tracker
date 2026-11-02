@@ -11,6 +11,7 @@ const TripsSection = lazy(() => import("./admin/TripsSection"));
 const UsersSection = lazy(() => import("./admin/UsersSection"));
 const FeSection = lazy(() => import("./admin/FeSection"));
 const ReviewSection = lazy(() => import("./admin/ReviewSection"));
+const RatesSection = lazy(() => import("./admin/RatesSection"));
 
 const ALL_TABS = [
   { key: "dashboard", label: "Dashboard", Component: DashboardSection },
@@ -20,6 +21,7 @@ const ALL_TABS = [
   { key: "zones", label: "Zonas", Component: ZonesSection },
   { key: "trips", label: "Viajes", Component: TripsSection },
   { key: "users", label: "Usuarios", Component: UsersSection },
+  { key: "rates", label: "Tarifas", Component: RatesSection, adminOnly: true },
   { key: "fe", label: "FE", Component: FeSection, adminOnly: true },
 ];
 

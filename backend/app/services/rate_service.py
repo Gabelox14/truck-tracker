@@ -123,7 +123,7 @@ def import_rates(db: Session, data: bytes, category: str = DEFAULT_CATEGORY) -> 
     vehicle_col = columns.get("vehiculo")
 
     seen: dict[tuple[str, str, str], Counter] = defaultdict(Counter)
-    skipped: list[dict] = []
+    skipped: Counter = Counter()
     rows_read = 0
     for row in rows[header_index + 1 :]:
         route = row[route_col] if route_col < len(row) else None
@@ -133,16 +133,16 @@ def import_rates(db: Session, data: bytes, category: str = DEFAULT_CATEGORY) -> 
         rows_read += 1
         route_text = " ".join(str(route).split())
         if "rebote" in fold(route_text):
-            skipped.append({"route": route_text, "reason": "Rebote: pendiente de definir cómo se cobra"})
+            skipped[(route_text, "Rebote: pendiente de definir cómo se cobra")] += 1
             continue
         parts = [part.strip() for part in re.split(r"\s+-\s+", route_text)]
         if len(parts) != 2 or not all(parts):
-            skipped.append({"route": route_text, "reason": "No es una ruta 'ORIGEN - DESTINO'"})
+            skipped[(route_text, "No es una ruta 'ORIGEN - DESTINO'")] += 1
             continue
         try:
             value = round(float(amount), 2)
         except (TypeError, ValueError):
-            skipped.append({"route": route_text, "reason": f"Monto no numérico: {amount}"})
+            skipped[(route_text, f"Monto no numérico: {amount}")] += 1
             continue
         vehicle = str(row[vehicle_col]).split() if vehicle_col is not None and row[vehicle_col] else []
         vehicle_class = vehicle_class_for(vehicle[0], " ".join(vehicle[1:])) if len(vehicle) > 1 else "liviano"
@@ -206,5 +206,5 @@ def import_rates(db: Session, data: bytes, category: str = DEFAULT_CATEGORY) -> 
         "rates_updated": updated,
         "zones_created": zones_created,
         "conflicts": conflicts,
-        "skipped": skipped,
+        "skipped": [{"route": route, "reason": reason, "count": count} for (route, reason), count in skipped.items()],
     }

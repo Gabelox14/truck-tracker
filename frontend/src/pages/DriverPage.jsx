@@ -87,7 +87,7 @@ export default function DriverPage() {
               </Button>
             </div>
             <div className="mt-4 border-t border-slate-100 pt-4">
-              <IntakeUpload tripId={activeTrip.id} title="Fotos del VIN y nota de voz" />
+              <IntakeUpload tripId={activeTrip.id} title="Fotos del VIN y nota de voz" showAmounts={false} />
               <Link
                 to={`/viajes/${activeTrip.id}`}
                 className="mt-3 inline-block text-sm text-slate-500 hover:text-slate-900 hover:underline"

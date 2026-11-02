@@ -51,6 +51,7 @@ class RateConflictOut(BaseModel):
 class RateSkippedOut(BaseModel):
     route: str
     reason: str
+    count: int = 1
 
 
 class RateImportOut(BaseModel):

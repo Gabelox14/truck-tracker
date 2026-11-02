@@ -67,7 +67,9 @@ def test_import_builds_rates_from_billed_register(api):
         {"route": f"{api.fleet.origin.name} - {api.fleet.destination.name}", "vehicle_class": "liviano",
          "chosen": 45000.0, "times": 3, "others": {"50000.0": 1}}
     ]
-    assert [item["route"] for item in summary["skipped"]] == ["GUAPILES - URUCA (REBOTE)"]
+    assert summary["skipped"] == [
+        {"route": "GUAPILES - URUCA (REBOTE)", "reason": "Rebote: pendiente de definir cómo se cobra", "count": 1}
+    ]
 
     rates = {(rate["vehicle_class"], rate["amount"]) for rate in api.client.get("/rates").json()}
     assert rates == {("liviano", 45000.0), ("carga", 55000.0), ("liviano", 55000.0)}

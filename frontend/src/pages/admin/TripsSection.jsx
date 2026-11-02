@@ -158,7 +158,7 @@ function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
           Abrir viaje
         </Link>
       </div>
-      {expanded && <TripCarsPanel tripId={trip.id} canAdd canDelete canEdit />}
+      {expanded && <TripCarsPanel tripId={trip.id} currency={trip.currency} canAdd canDelete canEdit />}
     </li>
   );
 }

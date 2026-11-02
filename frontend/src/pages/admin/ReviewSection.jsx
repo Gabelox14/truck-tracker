@@ -35,15 +35,18 @@ function CreateTripForm({ draft, drafts, drivers, trucks, zones, onDone }) {
   const { showToast } = useToast();
   const result = draft.extraction ?? {};
   const audioDate = result.extraction?.trip_date ?? "";
+  const directa = result.extraction?.invoice_type === "directa";
   const [values, setValues] = useState({
-    driver_id: "",
-    truck_id: "",
+    driver_id: result.driver_id ?? "",
+    truck_id: result.truck_id ?? "",
     origin_zone_id: result.origin_zone_id ?? "",
     destination_zone_id: result.destination_zone_id ?? "",
-    amount: result.cost_amount ?? "",
+    // En directos cada vehículo toma la tarifa de la ruta: el total sale solo.
+    amount: result.cost_per_vehicle ? "" : (result.cost_amount ?? ""),
     currency: result.cost_currency ?? "CRC",
-    trip_type: "",
+    trip_type: directa ? "directo" : "",
     trip_date: audioDate,
+    requested_by: result.requested_by ?? "",
   });
   const [extraIds, setExtraIds] = useState([]);
   const [error, setError] = useState("");
@@ -78,6 +81,7 @@ function CreateTripForm({ draft, drafts, drivers, trucks, zones, onDone }) {
           currency: values.currency,
           trip_type: values.trip_type || null,
           trip_date: values.trip_date || null,
+          requested_by: values.requested_by.trim() || null,
         });
       }}
       className="mt-3 space-y-2 rounded-lg border border-slate-200 p-3"
@@ -123,7 +127,15 @@ function CreateTripForm({ draft, drafts, drivers, trucks, zones, onDone }) {
             </option>
           ))}
         </Select>
-        <Input type="number" step="0.01" min="0" placeholder="Monto" aria-label="Monto" value={values.amount} onChange={set("amount")} />
+        <Input
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="Monto total (vacío = tarifas)"
+          aria-label="Monto total"
+          value={values.amount}
+          onChange={set("amount")}
+        />
         <Select value={values.currency} onChange={set("currency")} aria-label="Moneda">
           {CURRENCIES.map((c) => (
             <option key={c.value} value={c.value}>
@@ -137,6 +149,13 @@ function CreateTripForm({ draft, drafts, drivers, trucks, zones, onDone }) {
           <option value="indirecto">Indirecto</option>
         </Select>
         <Input type="date" aria-label="Fecha del viaje" value={values.trip_date} onChange={set("trip_date")} />
+        <Input
+          placeholder="Solicitado por"
+          aria-label="Solicitado por"
+          value={values.requested_by}
+          onChange={set("requested_by")}
+          className="sm:col-span-2"
+        />
       </div>
       {others.length > 0 && (
         <fieldset className="space-y-1">

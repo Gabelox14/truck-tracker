@@ -72,6 +72,14 @@ En feature/ocr-intake están hechas y subidas las fases 1 a 5 de la captura auto
    - Moneda en montos y en el dashboard.
 5. Excel FE ampliado: VIN, moneda, estado, enlace al viaje y hoja Resumen.
 
+Después se probó con datos reales de "viajes directos" (fotos y notas de voz de WhatsApp contra el Excel que se llena a mano), y se agregó:
+- Tarifas por ruta (pestaña "Tarifas" del admin), importadas del registro facturado. Los camiones JAC 1035/1042 pagan más que los livianos.
+- Monto por vehículo; el total del viaje es la suma.
+- Varias fotos por vehículo (etiqueta del VIN + carro) en una sola lectura.
+- Del audio también se extraen la unidad (M2 → M02), el chofer, quién lo solicita, la factura directa y "más IVA".
+- Excel "Formato Directos" idéntico al registro manual: con datos reales coincidieron 28 de 28 celdas.
+- Pendiente: definir cómo se cobra "(REBOTE)" (el usuario dijo que "es Zapote"; en el registro se cobra la mitad de la ruta). Mientras tanto, los rebotes no se importan como tarifa.
+
 Pendiente de mi parte:
 - Poner ANTHROPIC_API_KEY y TRANSCRIPTION_API_KEY en backend/.env y en Render.
 - Poner APP_BASE_URL y PYTHON_VERSION=3.12.10 en Render.

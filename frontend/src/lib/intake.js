@@ -3,19 +3,22 @@ import { apiClient } from "./apiClient";
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
-function upload(path, file, tripId) {
+export const MAX_PHOTOS_PER_VEHICLE = 4;
+
+function upload(path, field, files, tripId) {
   const form = new FormData();
-  form.append("file", file);
+  for (const file of files) form.append(field, file);
   if (tripId) form.append("trip_id", tripId);
   return apiClient.post(path, form).then((response) => response.data);
 }
 
-export function uploadVinPhoto(file, tripId) {
-  return upload("/intake/vin-photo", file, tripId);
+// Fotos del mismo vehículo (etiqueta del VIN y el carro): una sola lectura.
+export function uploadVehiclePhotos(files, tripId) {
+  return upload("/intake/vin-photo", "files", files, tripId);
 }
 
 export function uploadVoiceNote(file, tripId) {
-  return upload("/intake/audio", file, tripId);
+  return upload("/intake/audio", "file", [file], tripId);
 }
 
 export function intakeErrorMessage(err, fallback) {
