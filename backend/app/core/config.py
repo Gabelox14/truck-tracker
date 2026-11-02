@@ -14,9 +14,8 @@ class Settings(BaseSettings):
     # URL pública del frontend, para los enlaces del Excel. Sin definir, se usa
     # el primer origen de CORS_ORIGINS.
     app_base_url: str | None = None
-    # Las cuentas de chofer que crea el admin entran con un usuario ("carlos"); por
-    # debajo Supabase necesita un email, que se arma como usuario@este-dominio. Nunca
-    # se le envían correos. Debe coincidir con VITE_DRIVER_EMAIL_DOMAIN del frontend.
+    # Las cuentas de chofer que crea el admin entran con un correo generado
+    # (nombre@este-dominio). Nunca se le envían correos.
     driver_email_domain: str = "choferes.fullsoluciones.app"
 
     # Claude (vision + extracción). Sin llave, los endpoints de /intake responden 503.

@@ -15,11 +15,11 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 
-// Usuario y contraseña recién generados: se muestran una sola vez.
+// Correo y contraseña recién generados: la contraseña se muestra una sola vez.
 function CredentialsCard({ credentials, onClose }) {
   const { showToast } = useToast();
-  const { driver, username, password, reset } = credentials;
-  const message = `Full Soluciones — acceso de ${driver.full_name}\nEntrar en: ${window.location.origin}\nUsuario: ${username}\nContraseña: ${password}`;
+  const { driver, password, reset } = credentials;
+  const message = `Full Soluciones — acceso de ${driver.full_name}\nEntrar en: ${window.location.origin}\nCorreo: ${driver.email}\nContraseña: ${password}`;
 
   // "Nueva contraseña" se pide desde la lista, más abajo: traer la tarjeta a la vista.
   const ref = useRef(null);
@@ -37,8 +37,10 @@ function CredentialsCard({ credentials, onClose }) {
         }
       >
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          <dt className="text-slate-500">Usuario</dt>
-          <dd className="font-mono text-base text-slate-900">{username}</dd>
+          <dt className="text-slate-500">Correo</dt>
+          <dd className="break-all font-mono text-base text-slate-900">
+            {driver.email}
+          </dd>
           <dt className="text-slate-500">Contraseña</dt>
           <dd className="font-mono text-base text-slate-900">{password}</dd>
         </dl>
@@ -97,7 +99,7 @@ function NewDriverCard({ onCreated }) {
   return (
     <Card title="Nuevo chofer">
       <p className="text-sm text-slate-500">
-        El sistema le crea el usuario y la contraseña para que solo entre.
+        El sistema le crea el correo y la contraseña para que solo entre.
       </p>
       <form
         onSubmit={(e) => {
@@ -282,9 +284,7 @@ export default function DriversSection() {
                     {!driver.active && <Badge>Inactivo</Badge>}
                   </p>
                   <p className="truncate text-xs text-slate-400">
-                    {driver.username
-                      ? `Usuario: ${driver.username}`
-                      : driver.email}
+                    {driver.email}
                   </p>
                 </div>
                 <span className="flex flex-wrap items-center gap-2">

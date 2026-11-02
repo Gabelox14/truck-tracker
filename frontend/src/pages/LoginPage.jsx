@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { PasswordInput } from "../components/ui";
-import { toLoginEmail } from "../lib/driverAccounts";
 import { supabase } from "../lib/supabaseClient";
 
 export default function LoginPage() {
@@ -23,7 +22,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email: toLoginEmail(email), password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         navigate("/");
       } else {
@@ -110,16 +109,13 @@ export default function LoginPage() {
 
           <div className="space-y-1.5">
             <label htmlFor="email" className="text-sm font-medium text-slate-700">
-              {mode === "login" ? "Usuario o email" : "Email"}
+              Email
             </label>
             <input
               id="email"
-              type={mode === "login" ? "text" : "email"}
+              type="email"
               required
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              autoComplete={mode === "login" ? "username" : "email"}
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
