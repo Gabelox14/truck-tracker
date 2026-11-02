@@ -91,7 +91,8 @@ export default function UsersSection() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-slate-900">{p.full_name}</p>
                   <p className="truncate text-xs text-slate-400">
-                    {p.email} · CI {p.cedula}
+                    {p.email}
+                    {p.cedula && ` · CI ${p.cedula}`}
                   </p>
                 </div>
                 {isAdmin ? (

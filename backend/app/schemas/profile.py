@@ -12,7 +12,7 @@ class ProfileOut(BaseModel):
     id: UUID
     email: str
     full_name: str
-    cedula: str
+    cedula: str | None
     role: str
     created_at: datetime
     is_assigned: bool = False

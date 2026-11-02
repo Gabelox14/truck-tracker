@@ -6,8 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_claims, require_admin, require_staff
 from app.database.session import get_db
+from app.models.profile import Profile
 from app.schemas.profile import ProfileOut, ProfileRoleUpdate
-from app.services.profile_service import get_or_create_profile, list_profiles, update_profile_role
+from app.services.profile_service import (
+    attach_is_assigned,
+    get_or_create_profile,
+    list_profiles,
+    update_profile_role,
+)
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
@@ -25,6 +31,10 @@ def create_my_profile(
     claims: dict = Depends(get_current_user_claims),
     db: Session = Depends(get_db),
 ):
+    existing = db.get(Profile, claims["sub"])
+    if existing is not None:
+        # Incluye las cuentas de chofer que crea el admin, que no traen cédula.
+        return attach_is_assigned(db, existing)
     metadata = claims.get("user_metadata") or {}
     full_name = metadata.get("full_name")
     cedula = metadata.get("cedula")
