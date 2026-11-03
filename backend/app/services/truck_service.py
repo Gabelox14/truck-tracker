@@ -12,20 +12,12 @@ def get_truck(db: Session, truck_id: str) -> Truck | None:
     return truck_repository.get(db, truck_id)
 
 
-def create_truck(
-    db: Session, plate: str, code: str | None = None, brand: str | None = None
-) -> Truck:
-    return truck_repository.create(db, plate, code=code, brand=brand)
+def create_truck(db: Session, plate: str, **details) -> Truck:
+    return truck_repository.create(db, plate, **details)
 
 
-def update_truck(
-    db: Session,
-    truck_id: str,
-    plate: str | None = None,
-    code: str | None = None,
-    brand: str | None = None,
-) -> Truck | None:
-    return truck_repository.update(db, truck_id, plate=plate, code=code, brand=brand)
+def update_truck(db: Session, truck_id: str, **changes) -> Truck | None:
+    return truck_repository.update(db, truck_id, **changes)
 
 
 def delete_truck(db: Session, truck_id: str) -> bool:

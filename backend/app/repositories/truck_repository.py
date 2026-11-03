@@ -20,30 +20,22 @@ def get(db: Session, truck_id: str) -> Truck | None:
     return db.get(Truck, truck_id)
 
 
-def create(db: Session, plate: str, code: str | None = None, brand: str | None = None) -> Truck:
-    truck = Truck(plate=plate, code=code, brand=brand)
+def create(db: Session, plate: str, **details) -> Truck:
+    truck = Truck(plate=plate, **details)
     db.add(truck)
     db.commit()
     db.refresh(truck)
     return truck
 
 
-def update(
-    db: Session,
-    truck_id: str,
-    plate: str | None = None,
-    code: str | None = None,
-    brand: str | None = None,
-) -> Truck | None:
+def update(db: Session, truck_id: str, **changes) -> Truck | None:
+    """Solo cambia los campos que vienen con valor (None = no tocar)."""
     truck = db.get(Truck, truck_id)
     if truck is None:
         return None
-    if plate is not None:
-        truck.plate = plate
-    if code is not None:
-        truck.code = code
-    if brand is not None:
-        truck.brand = brand
+    for field, value in changes.items():
+        if value is not None:
+            setattr(truck, field, value)
     db.commit()
     db.refresh(truck)
     return truck

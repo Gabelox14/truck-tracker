@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_staff, require_staff_or_driver_profile, require_staff_profile
 from app.database.session import get_db
 from app.models.profile import Profile
+from app.models.truck import ADMIN_FIELDS
 from app.schemas.truck import TruckCreate, TruckOut, TruckUpdate
 from app.services import truck_service
 
@@ -16,9 +17,14 @@ router = APIRouter(prefix="/trucks", tags=["trucks"])
 def _redact(truck, is_admin: bool) -> TruckOut:
     out = TruckOut.model_validate(truck)
     if not is_admin:
-        out.code = None
-        out.brand = None
+        for field in ADMIN_FIELDS:
+            setattr(out, field, None)
     return out
+
+
+def _admin_details(payload, is_admin: bool) -> dict:
+    """Despacho solo maneja la placa; el resto lo pone el admin."""
+    return {field: getattr(payload, field) for field in ADMIN_FIELDS} if is_admin else {}
 
 
 @router.get("", response_model=list[TruckOut])
@@ -41,12 +47,7 @@ def create_truck(
 ):
     is_admin = profile is not None and profile.role == "admin"
     try:
-        truck = truck_service.create_truck(
-            db,
-            payload.plate,
-            code=payload.code if is_admin else None,
-            brand=payload.brand if is_admin else None,
-        )
+        truck = truck_service.create_truck(db, payload.plate, **_admin_details(payload, is_admin))
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Plate already exists")
@@ -76,11 +77,7 @@ def update_truck(
     is_admin = profile is not None and profile.role == "admin"
     try:
         truck = truck_service.update_truck(
-            db,
-            str(truck_id),
-            plate=payload.plate,
-            code=payload.code if is_admin else None,
-            brand=payload.brand if is_admin else None,
+            db, str(truck_id), plate=payload.plate, **_admin_details(payload, is_admin)
         )
     except IntegrityError:
         db.rollback()
