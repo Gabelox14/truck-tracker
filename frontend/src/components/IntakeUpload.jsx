@@ -85,7 +85,7 @@ function PhotoResult({ result }) {
         ? "VIN válido"
         : "El dígito verificador no cuadra";
   const decoded = result.nhtsa;
-  const vehicle = [result.make ?? decoded?.make ?? result.wmi_make, result.model ?? decoded?.model, result.model_year]
+  const vehicle = [result.make ?? decoded?.make ?? result.wmi_make, result.model ?? decoded?.model]
     .filter(Boolean)
     .join(" ");
 

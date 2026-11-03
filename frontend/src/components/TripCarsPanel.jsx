@@ -58,8 +58,7 @@ function CarFields({ values, onChange }) {
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
       <Input placeholder="Marca" aria-label="Marca" required {...field("brand")} />
       <Input placeholder="VIN" aria-label="VIN" className="font-mono sm:col-span-2" {...field("vin")} />
-      <Input placeholder="Modelo" aria-label="Modelo" {...field("model")} />
-      <Input placeholder="Año" aria-label="Año" type="number" min="1900" max="2100" {...field("model_year")} />
+      <Input placeholder="Modelo" aria-label="Modelo" className="sm:col-span-2" {...field("model")} />
       <Select aria-label="Clase de vehículo" {...field("vehicle_class")}>
         <option value="">Clase según el modelo</option>
         <option value="liviano">Liviano</option>
@@ -83,7 +82,6 @@ function toPayload(values) {
     brand: values.brand?.trim() || null,
     vin: values.vin?.trim() || null,
     model: values.model?.trim() || null,
-    model_year: values.model_year ? Number(values.model_year) : null,
   };
   if (values.vehicle_class) payload.vehicle_class = values.vehicle_class;
   if (values.amount !== undefined && values.amount !== "") payload.amount = Number(values.amount);
@@ -113,7 +111,7 @@ function CarRow({ car, tripId, currency, canEdit, canDelete, onRemove, removing 
     openIntakeFile(car.photo_file_id).catch(() => showToast("No se pudo abrir la foto", "error"));
   }
 
-  const vehicle = [car.brand ?? car.make_from_photo, car.model, car.model_year].filter(Boolean).join(" ");
+  const vehicle = [car.brand ?? car.make_from_photo, car.model].filter(Boolean).join(" ");
   const hint = vinHint(car);
 
   return (
@@ -163,7 +161,6 @@ function CarRow({ car, tripId, currency, canEdit, canDelete, onRemove, removing 
                   brand: car.brand ?? car.make_from_photo ?? "",
                   vin: car.vin ?? "",
                   model: car.model ?? "",
-                  model_year: car.model_year ?? "",
                   vehicle_class: car.vehicle_class ?? "",
                   amount: car.amount ?? "",
                 });

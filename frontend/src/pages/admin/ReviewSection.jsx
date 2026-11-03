@@ -385,7 +385,7 @@ export default function ReviewSection() {
               <li key={car.id} className="flex flex-wrap items-start justify-between gap-2 py-3">
                 <div className="min-w-0 space-y-0.5">
                   <p className="text-sm text-slate-900">
-                    {[car.brand ?? car.make_from_photo, car.model, car.model_year].filter(Boolean).join(" ") || "Vehículo sin marca"}
+                    {[car.brand ?? car.make_from_photo, car.model].filter(Boolean).join(" ") || "Vehículo sin marca"}
                   </p>
                   {car.vin && <p className="break-all font-mono text-xs text-slate-600">{car.vin}</p>}
                   <ReviewNotes notes={car.review_notes} />
