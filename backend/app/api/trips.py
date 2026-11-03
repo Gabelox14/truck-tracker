@@ -159,7 +159,10 @@ def complete_trip(
 ):
     if trip.status == "completed":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Trip already completed")
-    return trip_service.complete_trip(db, str(trip.id))
+    try:
+        return trip_service.complete_trip(db, str(trip.id))
+    except trip_service.VinBlocked as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
 
 @router.patch("/{trip_id}/amount", response_model=TripOut)
@@ -191,6 +194,8 @@ def confirm_trip_review(
 ):
     try:
         return trip_service.review_trip(db, trip, payload)
+    except trip_service.VinBlocked as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     except IntegrityError:
@@ -213,7 +218,10 @@ def add_trip_car(
     staff_id: str = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
-    return trip_service.add_trip_car(db, str(trip.id), payload, staff_id)
+    try:
+        return trip_service.add_trip_car(db, str(trip.id), payload, staff_id)
+    except trip_service.VinBlocked as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
 @router.patch("/{trip_id}/cars/{car_id}", response_model=TripCarOut)
@@ -227,7 +235,10 @@ def update_trip_car(
     car = trip_service.get_trip_car(db, str(trip.id), str(car_id))
     if car is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Car not found")
-    return trip_service.update_trip_car(db, car, payload)
+    try:
+        return trip_service.update_trip_car(db, car, payload)
+    except trip_service.VinBlocked as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
 @router.delete("/{trip_id}/cars/{car_id}", status_code=status.HTTP_204_NO_CONTENT)

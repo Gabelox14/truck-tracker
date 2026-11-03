@@ -52,5 +52,7 @@ class TripCarOut(BaseModel):
     photo_file_id: UUID | None = None
     review_status: str = "ok"
     review_notes: str | None = None
+    # VIN malo o que no coincide con la marca: bloquea confirmar y completar.
+    vin_problem: str | None = None
     created_at: datetime
     updated_at: datetime | None = None

@@ -29,6 +29,11 @@ function ReviewEditor({ trip, zones }) {
   const [correcting, setCorrecting] = useState(false);
   const [values, setValues] = useState({});
   const [error, setError] = useState("");
+  const { data: cars } = useQuery({
+    queryKey: ["trip-cars", trip.id],
+    queryFn: async () => (await apiClient.get(`/trips/${trip.id}/cars`)).data,
+  });
+  const badVins = (cars ?? []).filter((car) => car.vin_problem).length;
 
   const confirm = useMutation({
     mutationFn: async (payload) => (await apiClient.patch(`/trips/${trip.id}/review`, payload)).data,
@@ -58,9 +63,14 @@ function ReviewEditor({ trip, zones }) {
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         {trip.review_status === "needs_review" && (
-          <Button onClick={() => confirm.mutate({})} disabled={confirm.isPending}>
+          <Button onClick={() => confirm.mutate({})} disabled={confirm.isPending || badVins > 0}>
             Confirmar como está
           </Button>
+        )}
+        {badVins > 0 && (
+          <p className="self-center text-xs text-red-700">
+            Corrige el VIN de {badVins === 1 ? "1 vehículo" : `${badVins} vehículos`} para poder confirmar.
+          </p>
         )}
         <Button variant="ghost" onClick={() => (correcting ? setCorrecting(false) : startCorrecting())}>
           {correcting ? "Cancelar" : "Corregir datos"}

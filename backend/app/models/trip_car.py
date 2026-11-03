@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from app.database.base import Base
 from app.models.trip import REVIEW_STATUSES
+from app.services import vin_service
 
 
 class TripCar(Base):
@@ -52,3 +53,8 @@ class TripCar(Base):
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    @property
+    def vin_problem(self) -> str | None:
+        """Mientras haya un problema el vehículo no se confirma ni el viaje se completa."""
+        return vin_service.vin_problem(self.vin, self.brand or self.make_from_photo)

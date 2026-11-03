@@ -23,6 +23,8 @@ class FeRowOut(BaseModel):
     model_year: int | None = None
     vin: str | None = None
     vin_status: str | None = None
+    # VIN malo o que no coincide con la marca: el viaje no se puede completar.
+    vin_problem: str | None = None
     review: str
     has_photo: bool = False
     link: str

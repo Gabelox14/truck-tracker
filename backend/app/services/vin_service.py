@@ -84,6 +84,27 @@ def make_from_wmi(vin: str) -> str | None:
     return WMI_MAKES.get(vin[:3])
 
 
+def vin_problem(vin: str | None, brand: str | None = None) -> str | None:
+    """Por qué el VIN no sirve para facturar; None si está bien (o si no hay VIN).
+    En el registro real de directos 195 de 196 VIN cumplen todo esto; el que no,
+    era un error de digitación."""
+    if not vin:
+        return None
+    check = analyze(vin)
+    if "?" in check.normalized:
+        return "El VIN tiene caracteres que no se pudieron leer"
+    if not check.is_valid:
+        if len(check.normalized) != VIN_LENGTH:
+            return f"El VIN tiene {len(check.normalized)} caracteres; debe tener 17"
+        return "El VIN tiene caracteres que no van en un VIN"
+    if check.check_digit_ok is False:
+        return "El dígito verificador no cuadra: revisa que el VIN esté bien escrito"
+    vin_make = make_from_wmi(check.normalized)
+    if brand and vin_make and not makes_match(brand, vin_make):
+        return f"El VIN es de un {display_make(vin_make)}, pero el vehículo dice {brand}"
+    return None
+
+
 def latest_model_year(vin: str, current_year: int) -> int | None:
     """Año del VIN tomando el ciclo de 30 años más reciente que no pase del año
     siguiente: para carros nuevos, 'V' es 2027 y no 1997."""

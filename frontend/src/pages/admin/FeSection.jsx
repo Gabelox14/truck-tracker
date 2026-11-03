@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { apiClient } from "../../lib/apiClient";
 import { formatMoney } from "../../lib/formatMoney";
-import { Badge, Button, Card, EmptyState, ErrorText, Select } from "../../components/ui";
+import { Badge, Button, Card, EmptyState, ErrorText, Select, VinAlert } from "../../components/ui";
 import { useToast } from "../../context/ToastContext";
 
 function useOptions(queryKey, path) {
@@ -202,11 +202,7 @@ export default function FeSection() {
                       {row.vin ? (
                         <>
                           <span className="font-mono text-xs text-slate-700">{row.vin}</span>
-                          {row.vin_status !== "Sí" && (
-                            <span className="block text-xs text-slate-400">
-                              {row.vin_status === "No" ? "No es VIN de 17" : "Dígito no cuadra"}
-                            </span>
-                          )}
+                          <VinAlert problem={row.vin_problem} className="mt-1" />
                         </>
                       ) : (
                         <span className="text-slate-400">—</span>
@@ -220,7 +216,9 @@ export default function FeSection() {
                       {row.amount != null ? formatMoney(row.amount, row.currency) : "—"}
                     </td>
                     <td className="py-2 pr-3">
-                      {row.review === "Por revisar" ? (
+                      {row.vin_problem ? (
+                        <Badge tone="red">VIN con error</Badge>
+                      ) : row.review === "Por revisar" ? (
                         <Badge tone="review">Revisar</Badge>
                       ) : (
                         <span className="text-xs text-slate-500">{row.status}</span>

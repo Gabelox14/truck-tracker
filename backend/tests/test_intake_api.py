@@ -153,14 +153,17 @@ def test_staff_corrects_and_confirms_a_car(api):
 
 def test_manual_car_with_vin_is_validated(api):
     api.as_user(api.fleet.admin_id)
+    # Con el dígito verificador malo no se guarda (ver test_vin_blocking).
+    bad = api.client.post(f"/trips/{api.fleet.trip.id}/cars", json={"brand": "Honda", "vin": "1hgcm82633a004353"})
+    assert bad.status_code == 422
     response = api.client.post(
-        f"/trips/{api.fleet.trip.id}/cars", json={"brand": "Toyota", "vin": "1hgcm82633a004353", "model_year": 2019}
+        f"/trips/{api.fleet.trip.id}/cars", json={"brand": "Honda", "vin": "1hgcm82633a004352", "model_year": 2019}
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["vin"] == "1HGCM82633A004353"
+    assert body["vin"] == "1HGCM82633A004352"
     assert body["vin_valid"] is True
-    assert body["check_digit_ok"] is False
+    assert body["check_digit_ok"] is True
     assert body["photo_file_id"] is None
 
 

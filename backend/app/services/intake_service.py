@@ -50,7 +50,7 @@ def _review_reasons(
     elif not check.is_valid:
         reasons.append("No es un VIN de 17 caracteres (puede ser un número de chasis)")
     elif check.check_digit_ok is False:
-        reasons.append("El dígito verificador no cuadra (normal en carros fuera de Norteamérica)")
+        reasons.append("El dígito verificador no cuadra: revisa que el VIN esté bien leído")
 
     # Sin marca por NHTSA ni por la tabla de fabricantes no hay con qué confirmar el VIN.
     if check is not None and check.is_valid and vin_make is None:

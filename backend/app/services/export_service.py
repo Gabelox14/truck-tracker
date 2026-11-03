@@ -19,7 +19,7 @@ FE_COLUMNS = [
     ("Modelo", 16),
     ("Año", 7),
     ("VIN", 21),
-    ("VIN válido", 17),
+    ("VIN válido", 45),  # "Sí" o el motivo por el que no sirve
     ("Origen", 18),
     ("Destino", 18),
     ("Tipo de Viaje", 14),

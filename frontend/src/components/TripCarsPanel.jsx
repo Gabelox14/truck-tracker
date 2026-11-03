@@ -5,7 +5,7 @@ import { apiClient } from "../lib/apiClient";
 import { formatMoney } from "../lib/formatMoney";
 import { openIntakeFile } from "../lib/intake";
 import { useToast } from "../context/ToastContext";
-import { Badge, Button, ErrorText, Input, ReviewBadge, ReviewNotes, Select } from "./ui";
+import { Badge, Button, ErrorText, Input, ReviewBadge, ReviewNotes, Select, VinAlert } from "./ui";
 
 function RemoveCarButton({ onConfirm, pending }) {
   const [confirming, setConfirming] = useState(false);
@@ -132,9 +132,10 @@ function CarRow({ car, tripId, currency, canEdit, canDelete, onRemove, removing 
           {car.vin && (
             <p className="break-all font-mono text-xs text-slate-600">
               {car.vin}
-              {hint && <span className="font-sans text-slate-400"> · {hint}</span>}
+              {hint && !car.vin_problem && <span className="font-sans text-slate-400"> · {hint}</span>}
             </p>
           )}
+          <VinAlert problem={car.vin_problem} />
           {car.review_status === "needs_review" && <ReviewNotes notes={car.review_notes} />}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3 text-xs">
@@ -143,7 +144,7 @@ function CarRow({ car, tripId, currency, canEdit, canDelete, onRemove, removing 
               Ver foto
             </button>
           )}
-          {canEdit && car.review_status === "needs_review" && (
+          {canEdit && car.review_status === "needs_review" && !car.vin_problem && (
             <button
               type="button"
               disabled={update.isPending}

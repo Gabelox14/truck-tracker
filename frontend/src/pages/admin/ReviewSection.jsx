@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { IntakeUpload } from "../../components/IntakeUpload";
-import { Button, Card, ConfirmButton, EmptyState, ErrorText, Input, ReviewNotes, Select } from "../../components/ui";
+import { Button, Card, ConfirmButton, EmptyState, ErrorText, Input, ReviewNotes, Select, VinAlert } from "../../components/ui";
 import { useToast } from "../../context/ToastContext";
 import { apiClient } from "../../lib/apiClient";
 import { CURRENCIES, formatMoney } from "../../lib/formatMoney";
@@ -388,13 +388,14 @@ export default function ReviewSection() {
                     {[car.brand ?? car.make_from_photo, car.model].filter(Boolean).join(" ") || "Vehículo sin marca"}
                   </p>
                   {car.vin && <p className="break-all font-mono text-xs text-slate-600">{car.vin}</p>}
+                  <VinAlert problem={car.vin_problem} />
                   <ReviewNotes notes={car.review_notes} />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Link to={`/viajes/${car.trip_id}`} className="text-sm text-slate-600 hover:text-slate-900 hover:underline">
                     Abrir viaje
                   </Link>
-                  <ConfirmCarButton car={car} />
+                  {!car.vin_problem && <ConfirmCarButton car={car} />}
                 </div>
               </li>
             ))}

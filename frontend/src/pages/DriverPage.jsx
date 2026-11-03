@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { IntakeUpload } from "../components/IntakeUpload";
-import { Badge, Button, Card, EmptyState, ErrorText, Select } from "../components/ui";
+import { Badge, Button, Card, EmptyState, ErrorText, Select, VinAlert } from "../components/ui";
 import { apiClient } from "../lib/apiClient";
 import { Layout } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
@@ -62,6 +62,12 @@ export default function DriverPage() {
   const truckPlate = (id) => trucks?.find((t) => t.id === id)?.plate ?? "?";
 
   const activeTrip = trips?.find((t) => t.status === "in_progress");
+  const { data: activeCars } = useQuery({
+    queryKey: ["trip-cars", activeTrip?.id],
+    queryFn: async () => (await apiClient.get(`/trips/${activeTrip.id}/cars`)).data,
+    enabled: Boolean(activeTrip),
+  });
+  const badVins = (activeCars ?? []).filter((car) => car.vin_problem);
   const history = trips?.filter((t) => t.status === "completed") ?? [];
 
   return (
@@ -86,11 +92,22 @@ export default function DriverPage() {
               <Button
                 className="w-full sm:w-auto"
                 onClick={() => completeTrip.mutate(activeTrip.id)}
-                disabled={completeTrip.isPending}
+                disabled={completeTrip.isPending || badVins.length > 0}
               >
                 Marcar como llegado
               </Button>
             </div>
+            {badVins.length > 0 && (
+              <div className="mt-3 space-y-1">
+                <ErrorText>
+                  No puedes marcar el viaje como llegado: {badVins.length === 1 ? "un vehículo tiene" : `${badVins.length} vehículos tienen`}{" "}
+                  el VIN con error. Toma otra foto del VIN o avísale a la oficina para que lo corrija.
+                </ErrorText>
+                {badVins.map((car) => (
+                  <VinAlert key={car.id} problem={`${car.vin} — ${car.vin_problem}`} />
+                ))}
+              </div>
+            )}
             <div className="mt-4 border-t border-slate-100 pt-4">
               <IntakeUpload tripId={activeTrip.id} title="Fotos del VIN y nota de voz" showAmounts={false} />
               <Link

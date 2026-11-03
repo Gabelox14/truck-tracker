@@ -16,6 +16,28 @@ from app.services.text_utils import short_name, strip_accents
 THIRD_PARTY_LABEL = "Tercero"
 
 
+class VinBlocked(ValueError):
+    """Un VIN malo o que no coincide impide guardar, confirmar o completar."""
+
+
+def _car_label(car: TripCar) -> str:
+    return " ".join(filter(None, [car.brand or car.make_from_photo, car.model])) or "Vehículo"
+
+
+def vin_blockers(db: Session, trip: Trip) -> list[str]:
+    return [
+        f"{_car_label(car)} ({car.vin}): {car.vin_problem}"
+        for car in trip_car_repository.list_for_trip(db, str(trip.id))
+        if car.vin_problem
+    ]
+
+
+def _ensure_vins_ok(db: Session, trip: Trip, action: str) -> None:
+    problems = vin_blockers(db, trip)
+    if problems:
+        raise VinBlocked(f"No se puede {action}: corrige primero el VIN. " + " · ".join(problems))
+
+
 def create_trip(
     db: Session, driver_id: str, truck_id: str | None, origin_zone_id: str, destination_zone_id: str
 ) -> Trip:
@@ -23,6 +45,9 @@ def create_trip(
 
 
 def complete_trip(db: Session, trip_id: str) -> Trip | None:
+    trip = trip_repository.get(db, trip_id)
+    if trip is not None:
+        _ensure_vins_ok(db, trip, "completar el viaje")
     return trip_repository.complete(db, trip_id)
 
 
@@ -33,6 +58,7 @@ def update_trip_amount(db: Session, trip_id: str, amount: float, currency: str |
 def review_trip(db: Session, trip: Trip, payload: TripReviewUpdate) -> Trip:
     """Aplica las correcciones enviadas y deja el viaje confirmado. Si cambia la
     ruta, los vehículos se vuelven a tarifar con la tarifa de la ruta nueva."""
+    _ensure_vins_ok(db, trip, "confirmar el viaje")
     route = (trip.origin_zone_id, trip.destination_zone_id)
     for key, value in payload.model_dump(exclude_unset=True).items():
         if value is not None:
@@ -72,6 +98,9 @@ def add_trip_car(db: Session, trip_id: str, payload: TripCarCreate, user_id: str
     """Carro agregado a mano: sin monto explícito toma la tarifa de la ruta."""
     trip = trip_repository.get(db, trip_id)
     brand = payload.brand.strip()
+    problem = vin_service.vin_problem(vin_fields(payload.vin)["vin"], brand)
+    if problem:
+        raise VinBlocked(problem)
     car = TripCar(
         trip_id=trip.id,
         brand=brand,
@@ -106,6 +135,12 @@ def update_trip_car(db: Session, car: TripCar, payload: TripCarUpdate) -> TripCa
         fields.update(vin_fields(changes["vin"]))
     if changes.get("review_status"):
         fields["review_status"] = changes["review_status"]
+    if {"vin", "brand"} & fields.keys() or fields.get("review_status") == "confirmed":
+        vin = fields["vin"] if "vin" in fields else car.vin
+        brand = fields["brand"] if "brand" in fields else (car.brand or car.make_from_photo)
+        problem = vin_service.vin_problem(vin, brand)
+        if problem:
+            raise VinBlocked(problem)
     trip = trip_repository.get(db, str(car.trip_id))
     if "vehicle_class" in fields and "amount" not in fields and fields["vehicle_class"] != car.vehicle_class:
         # Cambió la clase: se vuelve a tomar la tarifa de esa clase.
@@ -146,11 +181,10 @@ STATUS_LABEL = {"in_progress": "En curso", "completed": "Completado"}
 
 
 def _vin_label(car: TripCar | None) -> str | None:
+    """'Sí' o el motivo por el que el VIN no sirve (columna "VIN válido")."""
     if car is None or not car.vin:
         return None
-    if not car.vin_valid:
-        return "No"
-    return "Sí" if car.check_digit_ok else "Dígito no cuadra"
+    return car.vin_problem or "Sí"
 
 
 def _review_label(trip: Trip, car: TripCar | None) -> str:
@@ -217,6 +251,7 @@ def build_fe_rows(
                     "model_year": car.model_year if car else None,
                     "vin": car.vin if car else None,
                     "vin_status": _vin_label(car),
+                    "vin_problem": car.vin_problem if car else None,
                     "review": _review_label(trip, car),
                     "has_photo": bool(car and car.photo_file_id),
                     # Con monto por vehículo, cada fila lleva el suyo; si no, el del viaje.
