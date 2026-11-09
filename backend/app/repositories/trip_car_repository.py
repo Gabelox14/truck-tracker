@@ -7,6 +7,18 @@ def list_for_trip(db: Session, trip_id: str) -> list[TripCar]:
     return db.query(TripCar).filter(TripCar.trip_id == trip_id).order_by(TripCar.created_at).all()
 
 
+def by_trip(db: Session, trip_ids) -> dict:
+    """Vehículos de muchos viajes en una sola consulta: {trip_id: [carros]}.
+    Para los listados de FE y Directos (miles de viajes)."""
+    grouped: dict = {}
+    ids = list(trip_ids)
+    for start in range(0, len(ids), 1000):
+        chunk = ids[start:start + 1000]
+        for car in db.query(TripCar).filter(TripCar.trip_id.in_(chunk)).order_by(TripCar.created_at):
+            grouped.setdefault(car.trip_id, []).append(car)
+    return grouped
+
+
 def list_needing_review(db: Session, limit: int = 200) -> list[TripCar]:
     return (
         db.query(TripCar)

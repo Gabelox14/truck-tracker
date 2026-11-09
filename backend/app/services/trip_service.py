@@ -219,6 +219,7 @@ def build_fe_rows(
     trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
     zones = {z.id: z for z in zone_repository.list_all(db, limit=200)}
     drivers = {d.id: d for d in db.query(Driver).all()}
+    cars_by_trip = trip_car_repository.by_trip(db, [trip.id for trip in trips])
     base_url = settings.resolved_app_base_url
 
     rows = []
@@ -241,7 +242,7 @@ def build_fe_rows(
             "status": STATUS_LABEL.get(trip.status, trip.status),
             "link": f"{base_url}/viajes/{trip.id}",
         }
-        cars = trip_car_repository.list_for_trip(db, str(trip.id)) or [None]
+        cars = cars_by_trip.get(trip.id) or [None]
         for car in cars:
             rows.append(
                 {
@@ -276,6 +277,7 @@ def build_directos_rows(db: Session, truck_id=None, zone_id=None, date_from=None
     )
     trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
     zones = {z.id: z for z in zone_repository.list_all(db, limit=200)}
+    cars_by_trip = trip_car_repository.by_trip(db, [trip.id for trip in trips])
     rows = []
     for trip in trips:
         truck = trucks.get(trip.truck_id)
@@ -290,7 +292,7 @@ def build_directos_rows(db: Session, truck_id=None, zone_id=None, date_from=None
             if truck
             else (trip.unit_label or (THIRD_PARTY_LABEL.upper() if trip.truck_id is None else None)),
         }
-        cars = trip_car_repository.list_for_trip(db, str(trip.id))
+        cars = cars_by_trip.get(trip.id, [])
         if not cars:
             rows.append({**base, "vehicle": None, "vin": None, "amount": trip.amount})
         for car in cars:
@@ -310,12 +312,13 @@ def build_fe_summary(
     trips = _export_trips(db, truck_id, zone_id, date_from, date_to, trip_type)
     totals: dict[str, dict] = {}
     vehicle_count = vehicles_needing_review = 0
+    cars_by_trip = trip_car_repository.by_trip(db, [trip.id for trip in trips])
     for trip in trips:
         if trip.amount is not None:
             entry = totals.setdefault(trip.currency, {"currency": trip.currency, "trips": 0, "total": 0.0})
             entry["trips"] += 1
             entry["total"] += float(trip.amount)
-        cars = trip_car_repository.list_for_trip(db, str(trip.id))
+        cars = cars_by_trip.get(trip.id, [])
         vehicle_count += len(cars)
         vehicles_needing_review += sum(1 for car in cars if car.review_status == "needs_review")
     return {
