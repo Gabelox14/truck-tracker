@@ -21,7 +21,8 @@ class Trip(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    driver_id = Column(UUID(as_uuid=True), ForeignKey("drivers.id"), nullable=False, index=True)
+    # Null solo en viajes del registro histórico de terceros sin cuenta (ver unit_label).
+    driver_id = Column(UUID(as_uuid=True), ForeignKey("drivers.id"), nullable=True, index=True)
     # Null en los viajes de choferes "tercero" (vehículo propio).
     truck_id = Column(UUID(as_uuid=True), ForeignKey("trucks.id"), nullable=True, index=True)
     origin_zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=False)
@@ -38,3 +39,5 @@ class Trip(Base):
     intake_source = Column(String, nullable=False, server_default="manual")
     review_status = Column(String, nullable=False, server_default="ok")
     review_notes = Column(Text, nullable=True)
+    # Unidad tal como la escribe el registro cuando no es un camión de la flota ("JP", "MYR").
+    unit_label = Column(String, nullable=True)

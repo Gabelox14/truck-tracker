@@ -52,7 +52,9 @@ class TripOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    driver_id: UUID
+    # Null: viaje del registro histórico de un tercero sin cuenta (ver unit_label).
+    driver_id: UUID | None
+    unit_label: str | None = None
     # Null: viaje de un tercero con su propio vehículo.
     truck_id: UUID | None
     origin_zone_id: UUID

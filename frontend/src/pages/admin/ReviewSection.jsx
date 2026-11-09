@@ -356,7 +356,7 @@ export default function ReviewSection() {
               <li key={trip.id} className="flex flex-wrap items-start justify-between gap-2 py-3">
                 <div className="min-w-0 space-y-0.5">
                   <p className="text-sm font-medium text-slate-900">
-                    {driverNames[trip.driver_id] ?? "Chofer"} · {trip.truck_id ? (truckPlates[trip.truck_id] ?? "Camión") : "Tercero"}
+                    {trip.driver_id ? (driverNames[trip.driver_id] ?? "Chofer") : (trip.unit_label ?? "Sin chofer")} · {trip.truck_id ? (truckPlates[trip.truck_id] ?? "Camión") : "Tercero"}
                   </p>
                   <p className="text-sm text-slate-500">
                     {zoneNames[trip.origin_zone_id] ?? "?"} → {zoneNames[trip.destination_zone_id] ?? "?"}

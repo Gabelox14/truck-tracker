@@ -230,7 +230,7 @@ def build_fe_rows(
         base = {
             "trip_id": trip.id,
             "trip_date": local_date(trip.started_at),
-            "truck_code": truck.code if truck else None,
+            "truck_code": truck.code if truck else trip.unit_label,
             "truck_plate": truck.plate if truck else (THIRD_PARTY_LABEL if trip.truck_id is None else None),
             "driver_name": driver.full_name if driver else None,
             "origin": zone_origin.name if zone_origin else None,
@@ -286,7 +286,9 @@ def build_directos_rows(db: Session, truck_id=None, zone_id=None, date_from=None
                 f"{origin.name if origin else '?'} - {destination.name if destination else '?'}"
             ).upper(),
             "requested_by": short_name(trip.requested_by),
-            "unit": (truck.code or truck.plate) if truck else (THIRD_PARTY_LABEL.upper() if trip.truck_id is None else None),
+            "unit": (truck.code or truck.plate)
+            if truck
+            else (trip.unit_label or (THIRD_PARTY_LABEL.upper() if trip.truck_id is None else None)),
         }
         cars = trip_car_repository.list_for_trip(db, str(trip.id))
         if not cars:
