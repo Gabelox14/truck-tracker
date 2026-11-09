@@ -62,6 +62,8 @@ def test_unreadable_characters_are_kept_and_invalid():
         ("HONDA", "Hyundai", False),
         ("Toyota", "LEXUS", False),
         ("KIA", "KIARA", False),
+        ("Deepal", "CHANGAN", True),
+        ("Avatar", "CHANGAN", True),
     ],
 )
 def test_makes_match(a, b, expected):

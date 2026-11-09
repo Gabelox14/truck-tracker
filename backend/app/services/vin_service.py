@@ -46,6 +46,9 @@ _MAKE_ALIASES = {
     "MERCEDES": "MERCEDES BENZ",
     "BENZ": "MERCEDES BENZ",
     "RANGE ROVER": "LAND ROVER",
+    # Marcas de Changan: sus VIN traen el prefijo de Changan (LS4/LS6).
+    "DEEPAL": "CHANGAN",
+    "AVATAR": "CHANGAN",
 }
 
 
