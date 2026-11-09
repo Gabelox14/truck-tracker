@@ -110,8 +110,7 @@ function TruckBarList({ data, currency }) {
         <li key={t.truck_id}>
           <div className="flex items-baseline justify-between gap-2 text-sm">
             <span className="truncate text-slate-900">
-              {t.plate}
-              {t.code ? ` · ${t.code}` : ""}
+              {t.code ? `${t.code} · ${t.plate}` : t.plate}
             </span>
             <span className="shrink-0 text-slate-500">{formatMoney(t.total, currency)}</span>
           </div>
@@ -224,7 +223,7 @@ export default function DashboardSection() {
             />
             <Stat
               label="Camión que más generó"
-              value={stats?.top_truck ? stats.top_truck.plate : "—"}
+              value={stats?.top_truck ? (stats.top_truck.code ?? stats.top_truck.plate) : "—"}
               hint={stats?.top_truck ? formatMoney(stats.top_truck.total, currency) : undefined}
             />
           </div>
