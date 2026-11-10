@@ -8,5 +8,6 @@ from app.models.trip import Trip
 from app.models.trip_car import TripCar
 from app.models.truck import Truck
 from app.models.zone import Zone
+from app.models.zone_distance import ZoneDistance
 
-__all__ = ["Base", "auth_users", "Profile", "Truck", "Driver", "Zone", "Trip", "TripCar", "IntakeFile", "RouteRate"]
+__all__ = ["Base", "auth_users", "Profile", "Truck", "Driver", "Zone", "Trip", "TripCar", "IntakeFile", "RouteRate", "ZoneDistance"]

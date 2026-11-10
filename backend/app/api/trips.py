@@ -21,7 +21,7 @@ from app.schemas.export import FeRowOut
 from app.schemas.stats import StatsSummaryOut
 from app.schemas.trip import TripAmountUpdate, TripCreate, TripOut, TripReviewUpdate, TripTypeUpdate
 from app.schemas.trip_car import TripCarCreate, TripCarOut, TripCarUpdate
-from app.services import driver_service, export_service, trip_service
+from app.services import driver_service, export_service, insights_service, trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -54,6 +54,18 @@ def stats_summary(
     db: Session = Depends(get_db),
 ):
     return trip_service.build_stats(db, date_from=date_from, date_to=date_to, currency=currency)
+
+
+@router.get("/stats/forecast")
+def stats_forecast(_staff_id: str = Depends(require_staff), db: Session = Depends(get_db)):
+    """Proyección del mes siguiente (colones) a partir de los últimos meses normales."""
+    return insights_service.build_forecast(db)
+
+
+@router.get("/stats/insights")
+def stats_insights(_staff_id: str = Depends(require_staff), db: Session = Depends(get_db)):
+    """Dónde se pierde plata: capacidad sin usar, km vacíos, rutas que pagan poco por km."""
+    return insights_service.build_insights(db)
 
 
 @router.get("/export/fe/preview", response_model=list[FeRowOut])

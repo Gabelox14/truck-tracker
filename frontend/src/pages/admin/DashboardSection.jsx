@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { apiClient } from "../../lib/apiClient";
 import { formatMoney } from "../../lib/formatMoney";
 import { Button, Card, EmptyState } from "../../components/ui";
+import { ForecastCard, LossesCard } from "./DashboardInsights";
 
 function toISODate(d) {
   return d.toISOString().slice(0, 10);
@@ -245,6 +246,9 @@ export default function DashboardSection() {
           </div>
         </Card>
       )}
+
+      <ForecastCard />
+      <LossesCard />
     </div>
   );
 }
