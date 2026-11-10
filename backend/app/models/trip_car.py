@@ -34,6 +34,8 @@ class TripCar(Base):
     color = Column(String, nullable=True)
     vin = Column(String, nullable=True, index=True)
     vin_raw = Column(String, nullable=True)
+    # Placa del vehículo (los usados ya vienen placados).
+    plate = Column(String, nullable=True)
     vin_valid = Column(Boolean, nullable=True)
     check_digit_ok = Column(Boolean, nullable=True)
     ocr_confidence = Column(Numeric(3, 2), nullable=True)

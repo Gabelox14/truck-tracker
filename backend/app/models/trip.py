@@ -5,6 +5,8 @@ from app.database.base import Base
 
 STATUSES = ("in_progress", "completed")
 TRIP_TYPES = ("directo", "indirecto")
+# De qué registro sale el viaje: VINS DIRECTOS, VINS USADOS DIRECTOS o VINS PROFORMAS.
+FE_TYPES = ("directo", "directo_usado", "proforma")
 CURRENCIES = ("CRC", "USD")
 INTAKE_SOURCES = ("manual", "upload", "whatsapp")
 REVIEW_STATUSES = ("ok", "needs_review", "confirmed")
@@ -15,6 +17,7 @@ class Trip(Base):
     __table_args__ = (
         CheckConstraint(f"status IN {STATUSES}", name="ck_trips_status"),
         CheckConstraint(f"trip_type IN {TRIP_TYPES}", name="ck_trips_trip_type"),
+        CheckConstraint(f"fe_type IN {FE_TYPES}", name="ck_trips_fe_type"),
         CheckConstraint(f"currency IN {CURRENCIES}", name="ck_trips_currency"),
         CheckConstraint(f"intake_source IN {INTAKE_SOURCES}", name="ck_trips_intake_source"),
         CheckConstraint(f"review_status IN {REVIEW_STATUSES}", name="ck_trips_review_status"),
@@ -33,6 +36,7 @@ class Trip(Base):
     amount = Column(Numeric(12, 2), nullable=True)
     currency = Column(String(3), nullable=False, server_default="CRC")
     trip_type = Column(String, nullable=True)
+    fe_type = Column(String, nullable=True)
     origin_text = Column(String, nullable=True)
     destination_text = Column(String, nullable=True)
     requested_by = Column(String, nullable=True)

@@ -64,7 +64,7 @@ def test_fe_sheet_layout_formats_and_links():
     ws = wb["FE"]
     assert [cell.value for cell in ws[1]] == export_service.FE_HEADERS
     assert ws.freeze_panes == "A2"
-    assert ws.auto_filter.ref == "A1:R3"
+    assert ws.auto_filter.ref == "A1:T3"
 
     first = {header: ws.cell(row=2, column=i + 1) for i, header in enumerate(export_service.FE_HEADERS)}
     assert first["Fecha"].value.date() == date(2026, 10, 30)

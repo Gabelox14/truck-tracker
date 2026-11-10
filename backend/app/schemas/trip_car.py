@@ -10,6 +10,7 @@ class TripCarCreate(BaseModel):
 
     brand: str = Field(min_length=1)
     vin: str | None = None
+    plate: str | None = None
     model: str | None = None
     model_year: int | None = Field(default=None, ge=1900, le=2100)
     color: str | None = None
@@ -24,6 +25,7 @@ class TripCarUpdate(BaseModel):
 
     brand: str | None = None
     vin: str | None = None
+    plate: str | None = None
     model: str | None = None
     model_year: int | None = Field(default=None, ge=1900, le=2100)
     color: str | None = None
@@ -44,6 +46,7 @@ class TripCarOut(BaseModel):
     color: str | None = None
     vin: str | None = None
     vin_raw: str | None = None
+    plate: str | None = None
     vin_valid: bool | None = None
     check_digit_ok: bool | None = None
     ocr_confidence: float | None = None

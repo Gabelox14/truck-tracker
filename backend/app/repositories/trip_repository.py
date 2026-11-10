@@ -44,6 +44,7 @@ def list_for_export(
     date_from: date | None = None,
     date_to: date | None = None,
     trip_type: str | None = None,
+    fe_type: str | None = None,
 ) -> list[Trip]:
     query = db.query(Trip)
     if truck_id:
@@ -58,6 +59,8 @@ def list_for_export(
         query = query.filter(Trip.started_at <= day_end(date_to))
     if trip_type:
         query = query.filter(Trip.trip_type == trip_type)
+    if fe_type:
+        query = query.filter(Trip.fe_type == fe_type)
     return query.order_by(Trip.started_at.desc()).all()
 
 

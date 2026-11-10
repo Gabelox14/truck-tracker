@@ -135,6 +135,7 @@ function CarRow({ car, tripId, currency, canEdit, canDelete, onRemove, removing 
               {hint && !car.vin_problem && <span className="font-sans text-slate-400"> · {hint}</span>}
             </p>
           )}
+          {car.plate && <p className="text-xs text-slate-500">Placa {car.plate}</p>}
           <VinAlert problem={car.vin_problem} />
           {car.review_status === "needs_review" && <ReviewNotes notes={car.review_notes} />}
         </div>

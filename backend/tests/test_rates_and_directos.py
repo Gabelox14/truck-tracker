@@ -257,6 +257,59 @@ def test_directos_export_matches_the_manual_register(api):
     assert api.as_user(api.fleet.driver_user_id).client.get("/trips/export/directos").status_code == 403
 
 
+def test_usados_register_adds_the_plate_after_the_vin(api):
+    trip = api.db.get(Trip, api.fleet.trip.id)
+    trip.trip_type, trip.fe_type = "directo", "directo_usado"
+    api.db.add(TripCar(trip_id=trip.id, brand="Suzuki", model="Alto", vin="MA3FC62S4RA255838", plate="BZV824", amount=25000))
+    api.db.flush()
+    admin = api.as_user(api.fleet.admin_id).client
+
+    response = admin.get("/trips/export/directos", params={"fe_type": "directo_usado"})
+    assert response.status_code == 200
+    assert "VINS USADOS DIRECTOS.xlsx" in response.headers["content-disposition"]
+    ws = load_workbook(io.BytesIO(response.content))["Hoja1"]
+    assert [cell.value for cell in ws[1]][:8] == ["FECHA", "VEHICULO", "VIN", "PLACA", "RUTA", "SOLICITADO", "CHOFER", "MONTO"]
+    assert [ws["C2"].value, ws["D2"].value, ws["H2"].value] == ["MA3FC62S4RA255838", "BZV824", 25000]
+    assert ws["I2"].value == "=SUM(H2:H2)"
+    assert ws["J2"].value == "=I2*1.13"
+
+    # Las proformas son otro registro: el viaje de usados no sale ahí.
+    proformas = load_workbook(io.BytesIO(admin.get("/trips/export/directos", params={"fe_type": "proforma"}).content))
+    assert proformas["Hoja1"]["A2"].value is None
+
+
+def test_fe_shows_the_fe_type_and_plate_and_filters_by_it(api):
+    trip = api.db.get(Trip, api.fleet.trip.id)
+    trip.trip_type, trip.fe_type = "directo", "proforma"
+    api.db.add(TripCar(trip_id=trip.id, brand="Suzuki", model="Vitara", vin="JS3TD04V4H4100051", plate="WDW-411"))
+    api.db.flush()
+    admin = api.as_user(api.fleet.admin_id).client
+
+    rows = admin.get("/trips/export/fe/preview", params={"fe_type": "proforma"}).json()
+    assert [(row["fe_type"], row["plate"]) for row in rows] == [("proforma", "WDW-411")]
+    assert admin.get("/trips/export/fe/preview", params={"fe_type": "directo"}).json() == []
+    assert admin.get("/trips/export/fe/preview", params={"fe_type": "otro"}).status_code == 422
+
+    ws = load_workbook(io.BytesIO(admin.get("/trips/export/fe").content))["FE"]
+    headers = [cell.value for cell in ws[1]]
+    assert ws.cell(row=2, column=headers.index("Tipo de FE") + 1).value == "Proformas"
+    assert ws.cell(row=2, column=headers.index("Placa del vehículo") + 1).value == "WDW-411"
+
+
+def test_vehicle_plate_is_saved_normalized(api):
+    admin = api.as_user(api.fleet.admin_id).client
+    response = admin.post(
+        f"/trips/{api.fleet.trip.id}/cars",
+        json={"brand": "Suzuki", "model": "Alto", "vin": "MA3FC62S4RA255838", "plate": " bzv 824 "},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["plate"] == "BZV824"
+    car_id = response.json()["id"]
+    updated = admin.patch(f"/trips/{api.fleet.trip.id}/cars/{car_id}", json={"plate": "vch-007"})
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["plate"] == "VCH-007"
+
+
 def test_trips_that_are_not_directos_stay_out(api):
     trip = api.db.get(Trip, api.fleet.trip.id)
     trip.trip_type = "indirecto"

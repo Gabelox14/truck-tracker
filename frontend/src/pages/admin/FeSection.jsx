@@ -16,14 +16,22 @@ function useOptions(queryKey, path) {
 }
 
 const TRIP_TYPE_LABEL = { directo: "Directo", indirecto: "Indirecto" };
+const FE_TYPE_LABEL = { directo: "Directo", directo_usado: "Directo-Usados", proforma: "Proformas" };
+// Nombre del registro que se descarga con "Formato Directos", según el tipo de FE.
+const DIRECTOS_FILENAME = {
+  directo: "VINS DIRECTOS.xlsx",
+  directo_usado: "VINS USADOS DIRECTOS.xlsx",
+  proforma: "VINS PROFORMAS.xlsx",
+};
 
-function buildParams({ truckId, zoneId, dateFrom, dateTo, tripType }) {
+function buildParams({ truckId, zoneId, dateFrom, dateTo, tripType, feType }) {
   const params = {};
   if (truckId) params.truck_id = truckId;
   if (zoneId) params.zone_id = zoneId;
   if (dateFrom) params.date_from = dateFrom;
   if (dateTo) params.date_to = dateTo;
   if (tripType) params.trip_type = tripType;
+  if (feType) params.fe_type = feType;
   return params;
 }
 
@@ -34,13 +42,14 @@ export default function FeSection() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [tripType, setTripType] = useState("");
+  const [feType, setFeType] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
 
   const trucks = useOptions(["trucks"], "/trucks");
   const zones = useOptions(["zones"], "/zones");
 
-  const filters = { truckId, zoneId, dateFrom, dateTo, tripType };
+  const filters = { truckId, zoneId, dateFrom, dateTo, tripType, feType };
   const { data: rows, isLoading } = useQuery({
     queryKey: ["fe-preview", filters],
     queryFn: async () =>
@@ -53,6 +62,7 @@ export default function FeSection() {
     setDateFrom("");
     setDateTo("");
     setTripType("");
+    setFeType("");
   }
 
   async function handleDownload(kind = "fe") {
@@ -65,7 +75,7 @@ export default function FeSection() {
       const url = URL.createObjectURL(response.data);
       const link = document.createElement("a");
       link.href = url;
-      link.download = kind === "directos" ? "VINS DIRECTOS.xlsx" : "FE.xlsx";
+      link.download = kind === "directos" ? DIRECTOS_FILENAME[feType] || "VINS DIRECTOS.xlsx" : "FE.xlsx";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -78,14 +88,14 @@ export default function FeSection() {
     }
   }
 
-  const hasFilters = truckId || zoneId || dateFrom || dateTo || tripType;
+  const hasFilters = truckId || zoneId || dateFrom || dateTo || tripType || feType;
 
   return (
     <div className="space-y-6">
       <Card title="FE">
         <p className="text-sm text-slate-500">
           Filtrá y revisá antes de descargar el Excel: una fila por vehículo con fecha, camión, chofer,
-          marca, modelo, año, VIN y si es válido, origen, destino, monto con su moneda, estado y un enlace
+          marca, modelo, año, VIN y si es válido, placa (en usados), tipo de FE, origen, destino, monto con su moneda, estado y un enlace
           al viaje en la app. Incluye una hoja Resumen con los totales por moneda.
         </p>
 
@@ -140,6 +150,17 @@ export default function FeSection() {
             <option value="directo">Directo</option>
             <option value="indirecto">Indirecto</option>
           </Select>
+          <Select
+            value={feType}
+            onChange={(e) => setFeType(e.target.value)}
+            aria-label="Filtrar por tipo de FE"
+            className="sm:w-44"
+          >
+            <option value="">Todo tipo de FE</option>
+            <option value="directo">Directo</option>
+            <option value="directo_usado">Directo-Usados</option>
+            <option value="proforma">Proformas</option>
+          </Select>
           {hasFilters && (
             <Button variant="ghost" onClick={clearFilters}>
               Limpiar filtros
@@ -180,6 +201,7 @@ export default function FeSection() {
                   <th className="py-2 pr-3 font-medium">VIN</th>
                   <th className="py-2 pr-3 font-medium">Ruta</th>
                   <th className="py-2 pr-3 font-medium">Tipo</th>
+                  <th className="py-2 pr-3 font-medium">Tipo de FE</th>
                   <th className="py-2 pr-3 font-medium">Monto</th>
                   <th className="py-2 pr-3 font-medium">Estado</th>
                   <th className="py-2 pr-3 font-medium"><span className="sr-only">Enlace</span></th>
@@ -202,6 +224,7 @@ export default function FeSection() {
                       {row.vin ? (
                         <>
                           <span className="font-mono text-xs text-slate-700">{row.vin}</span>
+                          {row.plate && <span className="block text-xs text-slate-500">Placa {row.plate}</span>}
                           <VinAlert problem={row.vin_problem} className="mt-1" />
                         </>
                       ) : (
@@ -212,6 +235,7 @@ export default function FeSection() {
                       {row.origin || "?"} → {row.destination || "?"}
                     </td>
                     <td className="py-2 pr-3 text-slate-500">{TRIP_TYPE_LABEL[row.trip_type] || "—"}</td>
+                    <td className="whitespace-nowrap py-2 pr-3 text-slate-500">{FE_TYPE_LABEL[row.fe_type] || "—"}</td>
                     <td className="whitespace-nowrap py-2 pr-3 text-slate-900">
                       {row.amount != null ? formatMoney(row.amount, row.currency) : "—"}
                     </td>

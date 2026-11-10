@@ -94,6 +94,14 @@ def vin_fields(raw: str | None) -> dict:
     }
 
 
+def normalize_plate(plate: str | None) -> str | None:
+    """'bzv 824 ' -> 'BZV824'; 'vch-007' -> 'VCH-007'. Vacía -> None."""
+    if plate is None:
+        return None
+    cleaned = "".join(str(plate).split()).upper()
+    return cleaned or None
+
+
 def add_trip_car(db: Session, trip_id: str, payload: TripCarCreate, user_id: str) -> TripCar:
     """Carro agregado a mano: sin monto explícito toma la tarifa de la ruta."""
     trip = trip_repository.get(db, trip_id)
@@ -107,6 +115,7 @@ def add_trip_car(db: Session, trip_id: str, payload: TripCarCreate, user_id: str
         model=payload.model,
         model_year=payload.model_year,
         color=payload.color,
+        plate=normalize_plate(payload.plate),
         created_by=user_id,
         vehicle_class=payload.vehicle_class or rate_service.vehicle_class_for(brand, payload.model),
         amount=payload.amount,
@@ -131,6 +140,8 @@ def update_trip_car(db: Session, car: TripCar, payload: TripCarUpdate) -> TripCa
         for key in ("brand", "model", "model_year", "color", "vehicle_class", "amount")
         if key in changes
     }
+    if "plate" in changes:
+        fields["plate"] = normalize_plate(changes["plate"])
     if "vin" in changes:
         fields.update(vin_fields(changes["vin"]))
     if changes.get("review_status"):
@@ -194,7 +205,7 @@ def _review_label(trip: Trip, car: TripCar | None) -> str:
     return "Confirmado" if "confirmed" in statuses else "OK"
 
 
-def _export_trips(db: Session, truck_id, zone_id, date_from, date_to, trip_type) -> list[Trip]:
+def _export_trips(db: Session, truck_id, zone_id, date_from, date_to, trip_type, fe_type=None) -> list[Trip]:
     return trip_repository.list_for_export(
         db,
         truck_id=truck_id,
@@ -202,6 +213,7 @@ def _export_trips(db: Session, truck_id, zone_id, date_from, date_to, trip_type)
         date_from=date_from,
         date_to=date_to,
         trip_type=trip_type,
+        fe_type=fe_type,
     )
 
 
@@ -212,10 +224,11 @@ def build_fe_rows(
     date_from=None,
     date_to=None,
     trip_type: str | None = None,
+    fe_type: str | None = None,
 ) -> list[dict]:
     """Una fila por vehículo (o una por viaje si no lleva). El monto es del
     viaje, así que se repite en cada vehículo; el resumen lo cuenta una vez."""
-    trips = _export_trips(db, truck_id, zone_id, date_from, date_to, trip_type)
+    trips = _export_trips(db, truck_id, zone_id, date_from, date_to, trip_type, fe_type)
     trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
     zones = {z.id: z for z in zone_repository.list_all(db, limit=200)}
     drivers = {d.id: d for d in db.query(Driver).all()}
@@ -239,6 +252,7 @@ def build_fe_rows(
             "amount": trip.amount,
             "currency": trip.currency,
             "trip_type": trip.trip_type,
+            "fe_type": trip.fe_type,
             "status": STATUS_LABEL.get(trip.status, trip.status),
             "link": f"{base_url}/viajes/{trip.id}",
         }
@@ -251,6 +265,7 @@ def build_fe_rows(
                     "model": car.model if car else None,
                     "model_year": car.model_year if car else None,
                     "vin": car.vin if car else None,
+                    "plate": car.plate if car else None,
                     "vin_status": _vin_label(car),
                     "vin_problem": car.vin_problem if car else None,
                     "review": _review_label(trip, car),
@@ -268,11 +283,13 @@ def _vehicle_label(car: TripCar) -> str:
     return strip_accents(" ".join(part for part in parts if part)).upper().replace("-", "")
 
 
-def build_directos_rows(db: Session, truck_id=None, zone_id=None, date_from=None, date_to=None) -> list[dict]:
-    """Filas del registro "VINS DIRECTOS": una por vehículo de los viajes directos,
-    en orden de fecha, con el monto de cada vehículo."""
+def build_directos_rows(
+    db: Session, truck_id=None, zone_id=None, date_from=None, date_to=None, fe_type=None
+) -> list[dict]:
+    """Filas del registro "VINS DIRECTOS" (o USADOS DIRECTOS / PROFORMAS con fe_type):
+    una por vehículo de los viajes directos, en orden de fecha, con el monto de cada vehículo."""
     trips = sorted(
-        _export_trips(db, truck_id, zone_id, date_from, date_to, "directo"),
+        _export_trips(db, truck_id, zone_id, date_from, date_to, "directo", fe_type),
         key=lambda trip: trip.started_at,
     )
     trucks = {t.id: t for t in truck_repository.list_all(db, limit=200)}
@@ -294,10 +311,12 @@ def build_directos_rows(db: Session, truck_id=None, zone_id=None, date_from=None
         }
         cars = cars_by_trip.get(trip.id, [])
         if not cars:
-            rows.append({**base, "vehicle": None, "vin": None, "amount": trip.amount})
+            rows.append({**base, "vehicle": None, "vin": None, "plate": None, "amount": trip.amount})
         for car in cars:
             amount = car.amount if car.amount is not None else (trip.amount if len(cars) == 1 else None)
-            rows.append({**base, "vehicle": _vehicle_label(car), "vin": car.vin, "amount": amount})
+            rows.append(
+                {**base, "vehicle": _vehicle_label(car), "vin": car.vin, "plate": car.plate, "amount": amount}
+            )
     return rows
 
 
@@ -308,8 +327,9 @@ def build_fe_summary(
     date_from=None,
     date_to=None,
     trip_type: str | None = None,
+    fe_type: str | None = None,
 ) -> dict:
-    trips = _export_trips(db, truck_id, zone_id, date_from, date_to, trip_type)
+    trips = _export_trips(db, truck_id, zone_id, date_from, date_to, trip_type, fe_type)
     totals: dict[str, dict] = {}
     vehicle_count = vehicles_needing_review = 0
     cars_by_trip = trip_car_repository.by_trip(db, [trip.id for trip in trips])

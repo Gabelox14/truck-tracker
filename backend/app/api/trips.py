@@ -25,6 +25,15 @@ from app.services import driver_service, export_service, trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
+FeType = Literal["directo", "directo_usado", "proforma"]
+# Nombre del archivo del formato Directos según el registro.
+DIRECTOS_FILENAME = {
+    None: "VINS DIRECTOS.xlsx",
+    "directo": "VINS DIRECTOS.xlsx",
+    "directo_usado": "VINS USADOS DIRECTOS.xlsx",
+    "proforma": "VINS PROFORMAS.xlsx",
+}
+
 
 @router.get("", response_model=list[TripOut])
 def list_trips(
@@ -54,6 +63,7 @@ def preview_fe(
     date_from: date | None = None,
     date_to: date | None = None,
     trip_type: str | None = None,
+    fe_type: FeType | None = None,
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -64,6 +74,7 @@ def preview_fe(
         date_from=date_from,
         date_to=date_to,
         trip_type=trip_type,
+        fe_type=fe_type,
     )
 
 
@@ -74,6 +85,7 @@ def export_fe(
     date_from: date | None = None,
     date_to: date | None = None,
     trip_type: str | None = None,
+    fe_type: FeType | None = None,
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -83,6 +95,7 @@ def export_fe(
         "date_from": date_from,
         "date_to": date_to,
         "trip_type": trip_type,
+        "fe_type": fe_type,
     }
     rows = trip_service.build_fe_rows(db, **filters)
     buffer = export_service.build_fe_workbook(rows, trip_service.build_fe_summary(db, **filters))
@@ -99,6 +112,7 @@ def export_directos(
     zone_id: UUID | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    fe_type: FeType | None = None,
     _admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -108,11 +122,12 @@ def export_directos(
         zone_id=str(zone_id) if zone_id else None,
         date_from=date_from,
         date_to=date_to,
+        fe_type=fe_type,
     )
     return StreamingResponse(
-        export_service.build_directos_workbook(rows),
+        export_service.build_directos_workbook(rows, with_plate=fe_type == "directo_usado"),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="VINS DIRECTOS.xlsx"'},
+        headers={"Content-Disposition": f'attachment; filename="{DIRECTOS_FILENAME[fe_type]}"'},
     )
 
 

@@ -65,6 +65,7 @@ class TripOut(BaseModel):
     amount: float | None
     currency: Currency = "CRC"
     trip_type: str | None = None
+    fe_type: str | None = None
     origin_text: str | None = None
     destination_text: str | None = None
     requested_by: str | None = None

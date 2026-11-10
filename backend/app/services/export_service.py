@@ -5,6 +5,7 @@ from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
 TRIP_TYPE_LABEL = {"directo": "Directo", "indirecto": "Indirecto"}
+FE_TYPE_LABEL = {"directo": "Directo", "directo_usado": "Directo-Usados", "proforma": "Proformas"}
 MONEY_FORMAT = {"CRC": '"₡"#,##0.00', "USD": '"$"#,##0.00'}
 DATE_FORMAT = "DD/MM/YYYY"
 
@@ -19,10 +20,12 @@ FE_COLUMNS = [
     ("Modelo", 16),
     ("Año", 7),
     ("VIN", 21),
+    ("Placa del vehículo", 12),
     ("VIN válido", 45),  # "Sí" o el motivo por el que no sirve
     ("Origen", 18),
     ("Destino", 18),
     ("Tipo de Viaje", 14),
+    ("Tipo de FE", 15),
     ("Monto", 15),
     ("Moneda", 9),
     ("Estado", 12),
@@ -53,10 +56,12 @@ def _fe_sheet(ws, rows: list[dict]) -> None:
                 row.get("model") or "",
                 row.get("model_year") or "",
                 row.get("vin") or "",
+                row.get("plate") or "",
                 row.get("vin_status") or "",
                 row.get("origin") or "",
                 row.get("destination") or "",
                 TRIP_TYPE_LABEL.get(row.get("trip_type"), ""),
+                FE_TYPE_LABEL.get(row.get("fe_type"), ""),
                 float(amount) if amount is not None else "",
                 row.get("currency") if amount is not None else "",
                 row.get("status") or "",
@@ -137,40 +142,49 @@ DIRECTOS_MONEY_FORMAT = '_-[$₡-140A]* #,##0.00_-;\\-[$₡-140A]* #,##0.00_-;_-
 IVA_RATE = 0.13
 
 
-def build_directos_workbook(rows: list[dict]) -> BytesIO:
+def build_directos_workbook(rows: list[dict], with_plate: bool = False) -> BytesIO:
+    """with_plate: formato "VINS USADOS DIRECTOS", igual pero con PLACA después del VIN."""
+    headers, widths = list(DIRECTOS_HEADERS), list(DIRECTOS_WIDTHS)
+    if with_plate:
+        headers.insert(3, "PLACA")
+        widths.insert(3, 11)
+    money_col = headers.index("MONTO") + 1
+    money, total, iva = (get_column_letter(money_col + i) for i in range(3))
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Hoja1"
-    ws.append(DIRECTOS_HEADERS)
+    ws.append(headers)
     for cell in ws[1]:
         cell.font = Font(bold=True)
 
     for row in rows:
-        ws.append(
-            [
-                row["trip_date"],
-                row.get("vehicle") or "",
-                row.get("vin") or "",
-                row.get("route") or "",
-                row.get("requested_by") or "",
-                row.get("unit") or "",
-                float(row["amount"]) if row.get("amount") is not None else None,
-            ]
-        )
+        values = [
+            row["trip_date"],
+            row.get("vehicle") or "",
+            row.get("vin") or "",
+            row.get("route") or "",
+            row.get("requested_by") or "",
+            row.get("unit") or "",
+            float(row["amount"]) if row.get("amount") is not None else None,
+        ]
+        if with_plate:
+            values.insert(3, row.get("plate") or "")
+        ws.append(values)
         line = ws.max_row
         ws.cell(row=line, column=1).number_format = DIRECTOS_DATE_FORMAT
-        ws.cell(row=line, column=7).number_format = DIRECTOS_MONEY_FORMAT
+        ws.cell(row=line, column=money_col).number_format = DIRECTOS_MONEY_FORMAT
 
     last = max(ws.max_row, 2)
-    ws["H2"] = f"=SUM(G2:G{last})"
-    ws["I2"] = f"=H2*{1 + IVA_RATE:g}"
-    for cell in ("H2", "I2"):
+    ws[f"{total}2"] = f"=SUM({money}2:{money}{last})"
+    ws[f"{iva}2"] = f"={total}2*{1 + IVA_RATE:g}"
+    for cell in (f"{total}2", f"{iva}2"):
         ws[cell].number_format = DIRECTOS_MONEY_FORMAT
         ws[cell].font = Font(bold=True)
-    for i, width in enumerate(DIRECTOS_WIDTHS, start=1):
+    for i, width in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:G{last}"
+    ws.auto_filter.ref = f"A1:{money}{last}"
 
     buffer = BytesIO()
     wb.save(buffer)
