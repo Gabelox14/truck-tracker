@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 
 import { apiClient } from "../../lib/apiClient";
 import { formatMoney } from "../../lib/formatMoney";
-import { Button, Card, EmptyState } from "../../components/ui";
+import { Card, EmptyState } from "../../components/ui";
 import { ForecastCard, LossesCard } from "./DashboardInsights";
 
 function toISODate(d) {
@@ -28,12 +28,36 @@ function presetRange(preset) {
   return { dateFrom: "", dateTo: "" };
 }
 
-function Stat({ label, value, hint }) {
+function Stat({ label, value, hint, className = "" }) {
   return (
-    <div className="py-3 first:pt-0 sm:px-5 sm:py-0 sm:first:pl-0">
+    <div className={`min-w-0 sm:px-5 sm:first:pl-0 ${className}`}>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
       {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
+    </div>
+  );
+}
+
+const DATE_INPUT =
+  "w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 md:w-auto md:py-2";
+
+// Control segmentado (mismo patrón que el selector de modo del login): carril gris, opción activa en blanco.
+function Segmented({ label, options, value, onChange, className = "" }) {
+  return (
+    <div role="group" aria-label={label} className={`flex w-full rounded-lg bg-slate-100 p-1 ${className}`}>
+      {options.map((option) => (
+        <button
+          key={option.key}
+          type="button"
+          aria-pressed={value === option.key}
+          onClick={() => onChange(option.key)}
+          className={`min-h-10 flex-1 whitespace-nowrap rounded-md px-3 text-sm font-medium transition md:min-h-8 md:flex-none ${
+            value === option.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 active:text-slate-900 md:hover:text-slate-700"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -45,58 +69,57 @@ function SubLabel({ children }) {
 function DailyBarChart({ data, currency }) {
   if (!data.length) return <EmptyState>No hay datos para este rango.</EmptyState>;
 
-  const width = 640;
-  const height = 160;
-  const barGap = 6;
-  const barWidth = Math.min(24, (width - barGap * (data.length - 1)) / data.length);
   const max = Math.max(...data.map((d) => d.total), 1);
   const maxIndex = data.reduce((best, d, i) => (d.total > data[best].total ? i : best), 0);
+  // Con muchos días, solo algunas etiquetas para que no se amontonen en el celular.
+  const step = Math.ceil(data.length / 8);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="sr-only">
-        <caption>Ingresos por día</caption>
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Monto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((d) => (
-            <tr key={d.date}>
-              <td>{d.date}</td>
-              <td>{formatMoney(d.total, currency)}</td>
+    <div>
+      <div className="sr-only">
+        <table>
+          <caption>Ingresos por día</caption>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Monto</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <svg
-        viewBox={`0 0 ${Math.max(width, data.length * (barWidth + barGap))} ${height + 24}`}
-        className="h-40 w-full"
-        aria-hidden="true"
-      >
-        <line x1="0" y1={height} x2={data.length * (barWidth + barGap)} y2={height} stroke="#e2e8f0" strokeWidth="1" />
-        {data.map((d, i) => {
-          const barHeight = (d.total / max) * (height - 8);
-          const x = i * (barWidth + barGap);
-          const y = height - barHeight;
-          return (
-            <g key={d.date}>
-              <title>{`${d.date}: ${formatMoney(d.total, currency)}`}</title>
-              <rect x={x} y={y} width={barWidth} height={Math.max(barHeight, 1)} rx="4" fill="#0f172a" />
-              {i === maxIndex && d.total > 0 && (
-                <text x={x + barWidth / 2} y={y - 4} textAnchor="middle" fontSize="10" fill="#475569">
-                  {formatMoney(d.total, currency)}
-                </text>
-              )}
-              <text x={x + barWidth / 2} y={height + 14} textAnchor="middle" fontSize="9" fill="#94a3b8">
-                {d.date.slice(5)}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+          </thead>
+          <tbody>
+            {data.map((d) => (
+              <tr key={d.date}>
+                <td>{d.date}</td>
+                <td>{formatMoney(d.total, currency)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mb-2 text-xs text-slate-500" aria-hidden="true">
+        Mejor día: {data[maxIndex].date.slice(8)}/{data[maxIndex].date.slice(5, 7)} ·{" "}
+        <span className="font-medium tabular-nums text-slate-900">{formatMoney(data[maxIndex].total, currency)}</span>
+      </p>
+      <div className="flex h-32 items-end gap-[3px] border-b border-slate-200 md:h-40 md:gap-1.5" aria-hidden="true">
+        {data.map((d, i) => (
+          <div
+            key={d.date}
+            title={`${d.date}: ${formatMoney(d.total, currency)}`}
+            className="flex h-full max-w-6 flex-1 items-end md:max-w-none"
+          >
+            <div
+              className={`w-full rounded-t-[3px] ${i === maxIndex ? "bg-slate-900" : "bg-slate-700"}`}
+              style={{ height: d.total > 0 ? `${(d.total / max) * 100}%` : "1px" }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex gap-[3px] overflow-hidden md:gap-1.5" aria-hidden="true">
+        {data.map((d, i) => (
+          <span key={d.date} className="max-w-6 flex-1 overflow-visible whitespace-nowrap text-[10px] text-slate-500 md:max-w-none">
+            {i % step === 0 ? `${Number(d.date.slice(8))}/${Number(d.date.slice(5, 7))}` : ""}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -162,53 +185,46 @@ export default function DashboardSection() {
   return (
     <div className="space-y-6">
       <Card>
-        <div className="flex flex-wrap items-center gap-2">
-          {presets.map((p) => (
-            <Button
-              key={p.key}
-              variant={preset === p.key ? "primary" : "ghost"}
-              onClick={() => setPreset(p.key)}
-            >
-              {p.label}
-            </Button>
-          ))}
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+          <Segmented label="Periodo" options={presets} value={preset} onChange={setPreset} className="md:w-auto" />
           {preset === "custom" && (
-            <>
+            <div className="grid grid-cols-2 gap-2 md:flex">
               <input
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                className={DATE_INPUT}
                 aria-label="Desde"
               />
               <input
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
+                className={DATE_INPUT}
                 aria-label="Hasta"
               />
-            </>
+            </div>
           )}
           {(stats?.totals_by_currency?.USD || currency === "USD") && (
-            <div className="ml-auto flex gap-1" role="group" aria-label="Moneda">
-              {[
-                { key: "CRC", label: "₡" },
-                { key: "USD", label: "$" },
-              ].map((c) => (
-                <Button key={c.key} variant={currency === c.key ? "primary" : "ghost"} onClick={() => setCurrency(c.key)}>
-                  {c.label}
-                </Button>
-              ))}
-            </div>
+            <Segmented
+              label="Moneda"
+              options={[
+                { key: "CRC", label: "₡ Colones" },
+                { key: "USD", label: "$ Dólares" },
+              ]}
+              value={currency}
+              onChange={setCurrency}
+              className="md:ml-auto md:w-auto"
+            />
           )}
         </div>
 
         {isLoading ? (
           <p className="mt-4 text-sm text-slate-400">Cargando...</p>
         ) : (
-          <div className="mt-5 grid grid-cols-1 divide-y divide-slate-100 border-t border-slate-100 pt-4 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:pt-5">
+          <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-slate-100 pt-4 sm:mt-5 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-slate-100 sm:pt-5">
             <Stat
+              className="col-span-2 sm:col-span-1"
               label="Total generado"
               value={formatMoney(stats?.total_amount, currency)}
               hint={

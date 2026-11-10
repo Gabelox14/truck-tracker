@@ -365,7 +365,7 @@ export default function ReviewSection() {
                   <ReviewNotes notes={trip.review_notes} />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Link to={`/viajes/${trip.id}`} className="text-sm text-slate-600 hover:text-slate-900 hover:underline">
+                  <Link to={`/viajes/${trip.id}`} className="inline-flex min-h-11 items-center text-sm text-slate-600 hover:text-slate-900 hover:underline md:min-h-0">
                     Abrir
                   </Link>
                   <ConfirmTripButton tripId={trip.id} />
@@ -392,7 +392,7 @@ export default function ReviewSection() {
                   <ReviewNotes notes={car.review_notes} />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Link to={`/viajes/${car.trip_id}`} className="text-sm text-slate-600 hover:text-slate-900 hover:underline">
+                  <Link to={`/viajes/${car.trip_id}`} className="inline-flex min-h-11 items-center text-sm text-slate-600 hover:text-slate-900 hover:underline md:min-h-0">
                     Abrir viaje
                   </Link>
                   {!car.vin_problem && <ConfirmCarButton car={car} />}

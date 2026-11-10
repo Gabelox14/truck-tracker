@@ -81,7 +81,7 @@ export default function UsersSection() {
     <div className="space-y-6">
       {isAdmin && <RoleReference />}
 
-      <Card title="Usuarios">
+      <Card title="Usuarios" hideTitleOnMobile>
         {isLoading ? (
           <p className="text-sm text-slate-400">Cargando...</p>
         ) : profiles?.length ? (

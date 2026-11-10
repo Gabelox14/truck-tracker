@@ -93,7 +93,8 @@ function MonthChart({ history, target, forecast }) {
 
   return (
     <figure>
-      <table className="sr-only">
+      <div className="sr-only">
+      <table>
         <caption>Ingresos por mes y proyección</caption>
         <thead>
           <tr>
@@ -112,6 +113,7 @@ function MonthChart({ history, target, forecast }) {
           ))}
         </tbody>
       </table>
+      </div>
       <div className="flex h-36 items-end gap-1 border-b border-slate-200 sm:gap-1.5" aria-hidden="true">
         {bars.map((b) => (
           <div
@@ -138,19 +140,19 @@ function MonthChart({ history, target, forecast }) {
           </div>
         ))}
       </div>
-      <div className="mt-1.5 flex gap-1 sm:gap-1.5" aria-hidden="true">
+      <div className="mt-1.5 flex gap-1 overflow-hidden sm:gap-1.5" aria-hidden="true">
         {bars.map((b, i) => {
           const label = MONTHS_SHORT[monthIndex(b.month)];
           return (
             <span
               key={b.month}
-              className={`flex-1 text-center text-[10px] leading-tight tracking-tight sm:text-[11px] ${
+              className={`min-w-0 flex-1 text-center text-[10px] leading-tight tracking-tight sm:text-[11px] ${
                 b.kind === "forecast" ? "font-semibold text-slate-900" : "text-slate-500"
               }`}
             >
               {label}
               {(i === 0 || label === "ene") && (
-                <span className="block text-[10px] text-slate-400">{b.month.slice(0, 4)}</span>
+                <span className="block text-[10px] text-slate-400">’{b.month.slice(2, 4)}</span>
               )}
             </span>
           );
@@ -219,7 +221,33 @@ export function ForecastCard() {
             <MonthChart history={data.history} target={target} forecast={data.fleet} />
           </div>
 
-          <div className="overflow-x-auto">
+          <ul className="divide-y divide-slate-100 border-t border-slate-100 md:hidden">
+            {data.by_unit.map((u) => (
+              <li key={u.unit} className="flex items-start justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900">
+                    {u.unit}
+                    {u.months < data.basis_months.length && (
+                      <span className="ml-2 text-xs font-normal text-slate-400">
+                        {u.months} {u.months === 1 ? "mes" : "meses"} de historia
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {number(u.trips)} viajes · {number(u.cars)} carros
+                  </p>
+                </div>
+                <div className="shrink-0 text-right tabular-nums">
+                  <p className="text-sm font-semibold text-slate-900">{crc(u.amount)}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {crc(u.low)} – {crc(u.high)}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[520px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs text-slate-500">
@@ -364,7 +392,7 @@ function buildFindings(data) {
 
 function Finding({ finding }) {
   return (
-    <li className="grid gap-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_11rem] sm:gap-6">
+    <li className="grid gap-2 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_11rem] sm:gap-6">
       <div>
         <h3 className="text-sm font-semibold text-slate-900">{finding.title}</h3>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">{finding.evidence}</p>
@@ -372,17 +400,55 @@ function Finding({ finding }) {
           <span className="font-medium">Qué hacer:</span> {finding.action}
         </p>
       </div>
-      <div className="sm:text-right">
-        <p className="text-base font-semibold tabular-nums text-slate-900">{finding.value}</p>
+      <div className="order-first flex flex-wrap items-baseline gap-x-2 sm:order-none sm:block sm:text-right">
+        <p className="text-lg font-semibold tabular-nums text-slate-900 sm:text-base">{finding.value}</p>
         <p className="text-xs text-slate-500">{finding.unit}</p>
       </div>
     </li>
   );
 }
 
+function UnitsList({ units, fleetPerKm }) {
+  const metric = (label, value, strong = false) => (
+    <div>
+      <dt className="text-[11px] text-slate-500">{label}</dt>
+      <dd className={`tabular-nums ${strong ? "font-semibold text-slate-900" : "text-slate-700"}`}>{value}</dd>
+    </div>
+  );
+  return (
+    <ul className="divide-y divide-slate-100 border-t border-slate-100 md:hidden">
+      {units.map((u) => (
+        <li key={u.unit} className="py-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-sm font-medium text-slate-900">
+              {u.unit} <span className="ml-1 text-xs font-normal text-slate-400">{u.kind}</span>
+            </p>
+            <p className="text-sm font-semibold tabular-nums text-slate-900">
+              {crc(u.amount_per_month)}
+              <span className="text-xs font-normal text-slate-500"> /mes</span>
+            </p>
+          </div>
+          <dl className="mt-2 grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
+            {metric("Días / mes", number(u.days_per_month, 1))}
+            {metric("Viajes / mes", number(u.trips_per_month, 1))}
+            {metric("Carros / viaje", number(u.cars_per_trip, 1))}
+            {metric("Km / mes", u.km_per_month != null ? number(u.km_per_month) : "—")}
+            {metric("Km vacíos", u.empty_share != null ? `${number(u.empty_share * 100)} %` : "—")}
+            {metric(
+              "₡ / km",
+              u.amount_per_km != null ? crc(u.amount_per_km) : "—",
+              Boolean(fleetPerKm && u.amount_per_km < fleetPerKm),
+            )}
+          </dl>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function UnitsTable({ units, fleetPerKm }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[760px] text-left text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-xs text-slate-500">
@@ -460,6 +526,7 @@ export function LossesCard() {
               {crc(data.fleet_amount_per_km)}).
             </p>
             <div className="mt-3">
+              <UnitsList units={data.units} fleetPerKm={data.fleet_amount_per_km} />
               <UnitsTable units={data.units} fleetPerKm={data.fleet_amount_per_km} />
             </div>
             <p className="mt-3 text-xs leading-relaxed text-slate-500">

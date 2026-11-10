@@ -8,7 +8,7 @@ export function Button({ variant = "primary", className = "", ...props }) {
   };
   return (
     <button
-      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${variants[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium transition active:scale-[0.98] md:min-h-0 ${variants[variant]} ${className}`}
       {...props}
     />
   );
@@ -48,7 +48,7 @@ export function ConfirmButton({ onConfirm, pending = false, children = "Eliminar
 export function Input({ className = "", ...props }) {
   return (
     <input
-      className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 ${className}`}
+      className={`w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none md:py-2 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 ${className}`}
       {...props}
     />
   );
@@ -61,7 +61,7 @@ export function PasswordInput({ className = "", ...props }) {
     <div className="relative">
       <input
         type={visible ? "text" : "password"}
-        className={`w-full rounded-lg border border-slate-300 px-3 py-2 pr-10 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 ${className}`}
+        className={`w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm md:py-2 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 ${className}`}
         {...props}
       />
       <button
@@ -92,22 +92,28 @@ export function PasswordInput({ className = "", ...props }) {
 export function Select({ className = "", ...props }) {
   return (
     <select
-      className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 ${className}`}
+      className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm md:py-2 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 ${className}`}
       {...props}
     />
   );
 }
 
-export function Card({ title, children, action }) {
+// hideTitleOnMobile: en el celular la sección ya muestra ese título arriba; no se repite.
+export function Card({ title, children, action, hideTitleOnMobile = false }) {
+  const headerOnlyDesktop = hideTitleOnMobile && !action;
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       {(title || action) && (
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          {title && <h2 className="text-sm font-semibold text-slate-900">{title}</h2>}
+        <div
+          className={`items-center justify-between gap-3 border-b border-slate-100 px-4 py-3.5 md:px-5 md:py-4 ${
+            headerOnlyDesktop ? "hidden md:flex" : "flex"
+          }`}
+        >
+          {title && <h2 className={`text-sm font-semibold text-slate-900 ${hideTitleOnMobile ? "hidden md:block" : ""}`}>{title}</h2>}
           {action}
         </div>
       )}
-      <div className="p-5">{children}</div>
+      <div className="p-4 md:p-5">{children}</div>
     </div>
   );
 }

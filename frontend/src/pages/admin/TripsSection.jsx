@@ -80,7 +80,7 @@ function AmountEditor({ trip }) {
     <button
       type="button"
       onClick={() => setEditing(true)}
-      className={`rounded-lg border px-2.5 py-1 text-sm font-medium transition ${
+      className={`inline-flex min-h-11 items-center rounded-lg border px-2.5 py-1 text-sm font-medium transition md:min-h-0 ${
         hasAmount
           ? "border-slate-300 bg-white text-slate-900 hover:border-slate-900"
           : "border-dashed border-slate-300 text-slate-500 hover:border-slate-900 hover:text-slate-900"
@@ -150,11 +150,11 @@ function TripRow({ trip, driverNames, truckPlates, zoneNames }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="text-sm text-slate-500 hover:text-slate-900 hover:underline"
+          className="inline-flex min-h-11 items-center text-sm text-slate-500 hover:text-slate-900 hover:underline md:min-h-0"
         >
           {expanded ? "Ocultar carros" : "Ver carros"}
         </button>
-        <Link to={`/viajes/${trip.id}`} className="text-sm text-slate-500 hover:text-slate-900 hover:underline">
+        <Link to={`/viajes/${trip.id}`} className="inline-flex min-h-11 items-center text-sm text-slate-500 hover:text-slate-900 hover:underline md:min-h-0">
           Abrir viaje
         </Link>
       </div>
@@ -173,7 +173,7 @@ export default function TripsSection() {
   const zoneNames = useLookup(["zones"], "/zones", "name");
 
   return (
-    <Card title="Viajes">
+    <Card title="Viajes" hideTitleOnMobile>
       {isLoading ? (
         <p className="text-sm text-slate-400">Cargando...</p>
       ) : trips?.length ? (

@@ -56,7 +56,7 @@ function RateCell({ rate, route, vehicleClass }) {
           e.preventDefault();
           save.mutate(Number(amount));
         }}
-        className="flex items-center gap-1"
+        className="flex flex-wrap items-center gap-1"
       >
         <Input
           type="number"
@@ -100,7 +100,7 @@ function RateCell({ rate, route, vehicleClass }) {
         setAmount(rate ? rate.amount : "");
         setEditing(true);
       }}
-      className={`rounded-lg px-2 py-1 text-sm transition hover:bg-slate-100 ${rate ? "text-slate-900" : "text-slate-400"}`}
+      className={`inline-flex min-h-11 items-center rounded-lg px-2 py-1 text-sm transition hover:bg-slate-100 md:min-h-0 ${rate ? "text-slate-900" : "text-slate-400"}`}
     >
       {rate ? formatMoney(rate.amount, rate.currency) : "+ Agregar"}
     </button>
@@ -260,7 +260,25 @@ export default function RatesSection() {
         </p>
         <p className="mt-1 text-sm text-slate-500">Toca un monto para cambiarlo o quitarlo.</p>
         {rows.length ? (
-          <div className="relative mt-4 overflow-x-auto">
+          <>
+          <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 md:hidden">
+            {rows.map((route) => (
+              <li key={`m-${route.origin}|${route.destination}`} className="py-3">
+                <p className="text-sm font-medium text-slate-900">
+                  {zoneName(route.origin)} → {zoneName(route.destination)}
+                </p>
+                <div className="mt-1.5 grid grid-cols-2 gap-3">
+                  {["liviano", "carga"].map((vehicleClass) => (
+                    <div key={vehicleClass}>
+                      <p className="text-[11px] text-slate-500">{CLASS_LABEL[vehicleClass]}</p>
+                      <RateCell rate={route.rates[vehicleClass]} route={route} vehicleClass={vehicleClass} />
+                    </div>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="relative mt-4 hidden overflow-x-auto md:block">
             <table className="w-full min-w-[560px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
@@ -285,6 +303,7 @@ export default function RatesSection() {
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <EmptyState>Todavía no hay tarifas. Impórtalas desde el registro facturado o agrega una ruta.</EmptyState>
         )}

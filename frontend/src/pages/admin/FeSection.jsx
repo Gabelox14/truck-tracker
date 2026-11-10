@@ -43,6 +43,8 @@ export default function FeSection() {
   const [dateTo, setDateTo] = useState("");
   const [tripType, setTripType] = useState("");
   const [feType, setFeType] = useState("");
+  // En el celular la lista se muestra de a 50 para no cargar miles de filas de golpe.
+  const [mobileLimit, setMobileLimit] = useState(50);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
 
@@ -92,7 +94,7 @@ export default function FeSection() {
 
   return (
     <div className="space-y-6">
-      <Card title="FE">
+      <Card title="FE" hideTitleOnMobile>
         <p className="text-sm text-slate-500">
           Filtrá y revisá antes de descargar el Excel: una fila por vehículo con fecha, camión, chofer,
           marca, modelo, año, VIN y si es válido, placa (en usados), tipo de FE, origen, destino, monto con su moneda, estado y un enlace
@@ -126,20 +128,28 @@ export default function FeSection() {
               </option>
             ))}
           </Select>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto"
-            aria-label="Desde"
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto"
-            aria-label="Hasta"
-          />
+          <div className="grid grid-cols-2 gap-2 sm:contents">
+            <label className="block sm:contents">
+              <span className="mb-1 block text-xs text-slate-500 sm:hidden">Desde</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto sm:py-2"
+                aria-label="Desde"
+              />
+            </label>
+            <label className="block sm:contents">
+              <span className="mb-1 block text-xs text-slate-500 sm:hidden">Hasta</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 sm:w-auto sm:py-2"
+                aria-label="Hasta"
+              />
+            </label>
+          </div>
           <Select
             value={tripType}
             onChange={(e) => setTripType(e.target.value)}
@@ -168,7 +178,7 @@ export default function FeSection() {
           )}
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 grid grid-cols-2 items-center gap-2 md:flex md:gap-3">
           <Button onClick={() => handleDownload("fe")} disabled={Boolean(downloading) || !rows?.length}>
             {downloading === "fe" ? "Generando..." : "Descargar Excel"}
           </Button>
@@ -176,7 +186,7 @@ export default function FeSection() {
             {downloading === "directos" ? "Generando..." : "Formato Directos"}
           </Button>
           {!isLoading && (
-            <span className="text-xs text-slate-400">
+            <span className="col-span-2 text-center text-xs text-slate-400 md:text-left">
               {rows?.length ?? 0} fila{rows?.length === 1 ? "" : "s"}
             </span>
           )}
@@ -190,7 +200,52 @@ export default function FeSection() {
         {isLoading ? (
           <p className="text-sm text-slate-400">Cargando...</p>
         ) : rows?.length ? (
-          <div className="relative overflow-x-auto">
+          <>
+          <ul className="-my-3 divide-y divide-slate-100 md:hidden">
+            {rows.slice(0, mobileLimit).map((row, i) => (
+              <li key={`m-${row.trip_id}-${i}`}>
+                <Link to={`/viajes/${row.trip_id}`} className="block py-3 active:bg-slate-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-900">
+                        {[row.brand, row.model, row.model_year].filter(Boolean).join(" ") || "Sin vehículo"}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                        {new Date(`${row.trip_date}T12:00:00`).toLocaleDateString()} ·{" "}
+                        {[row.truck_code, row.truck_plate].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+                      {row.amount != null ? formatMoney(row.amount, row.currency) : "—"}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {row.origin || "?"} → {row.destination || "?"}
+                    {FE_TYPE_LABEL[row.fe_type] && <span className="text-slate-400"> · {FE_TYPE_LABEL[row.fe_type]}</span>}
+                  </p>
+                  {row.vin && (
+                    <p className="mt-1 break-all font-mono text-[11px] text-slate-500">
+                      {row.vin}
+                      {row.plate && <span className="font-sans"> · Placa {row.plate}</span>}
+                    </p>
+                  )}
+                  {(row.vin_problem || row.review === "Por revisar") && (
+                    <div className="mt-1.5">
+                      {row.vin_problem ? <Badge tone="red">VIN con error</Badge> : <Badge tone="review">Revisar</Badge>}
+                    </div>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {rows.length > mobileLimit && (
+            <div className="mt-4 md:hidden">
+              <Button variant="ghost" className="w-full" onClick={() => setMobileLimit((n) => n + 50)}>
+                Ver más ({rows.length - mobileLimit} restantes)
+              </Button>
+            </div>
+          )}
+          <div className="relative hidden overflow-x-auto md:block">
             <table className="w-full min-w-[960px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
@@ -261,6 +316,7 @@ export default function FeSection() {
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <EmptyState>No hay viajes que coincidan con los filtros.</EmptyState>
         )}
